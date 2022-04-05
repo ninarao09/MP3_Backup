@@ -118,26 +118,36 @@ int Client::connectTo()
 	// ------------------------------------------------------------
 	
 	//Connect to Coordinator to get master port info
-    std::string login_info = "localhost:" + clientPort;
-    std::string login_info2 = "localhost:" + coordinatorPort;
+    std::string login_info = "localhost:" + coordinatorPort;
 
     
     stubCoord_ = std::unique_ptr<CoordinatorService::Stub>(CoordinatorService::NewStub(
               grpc::CreateChannel(
-                    login_info2, grpc::InsecureChannelCredentials())));
-                    
-    stub_ = std::unique_ptr<SNSService::Stub>(SNSService::NewStub(
-               grpc::CreateChannel(
                     login_info, grpc::InsecureChannelCredentials())));
-                    
+
+    //call login on the coordinator side to recieve the client's master ip/port
     ClientContext context;
     coord438::Request request;
     coord438::Reply reply;
     
-    request.set_id(6);
-
-    //call login on the coordinator side to recieve the client's master ip/port
+    //takes id from command line and sends it to corrdinator
+    request.set_id(stoi(id));
     grpc::Status status = stubCoord_->Login(&context, request, &reply);
+
+
+    std::cout << "PortNum assigned from coordinator: " << request.port_number() << std::endl;
+
+
+    //what??
+    std::string login_info2 = "localhost:" + clientPort;
+
+    stub_ = std::unique_ptr<SNSService::Stub>(SNSService::NewStub(
+               grpc::CreateChannel(
+                    login_info2, grpc::InsecureChannelCredentials())));
+                    
+    
+
+    
     
 	if (status.ok()) {
 	    grpc::CreateChannel("localhost:3010", grpc::InsecureChannelCredentials());

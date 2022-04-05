@@ -47,34 +47,54 @@ number in each cluster. More implementation details are below.
 
 
 std::vector<Servers> master_db;
-Servers slave_db[3];
-Servers FS_db[3];
+std::vector<Servers> slave_db;
+std::vector<Servers> followerSyncer_db;
 
 class CoordinatorServiceImpl final : public CoordinatorService::Service {
   
       Status Login(ServerContext* context, const Request* request, Reply* reply) override {
           
 
-          //takes client and assigns them a master port and ip then returns it
+        // first take client and assign is to a cluster (Xi) using mod3 formula
+        // client assigned cluster is server id
+        int server_id = (request->id()) % 3 + 1;
+
+        //Check if any clients have joined and assign master port
+        std::string port_num;
+        if(master_db.size() == 0){
+            port_num = "9190";
+        } else{
+            port_num = std::to_string(stoi(master_db[master_db.size()-1].portNum) + 100);
+        }
+
+
+
+
+        std::cout  << "server id: " << server_id << std::endl;
+        std::cout  << "portNum : " << port_num << std::endl;
+
         
+        //Create master
         Servers master;
 
-        master.serverId = 0;
-        master.portNum = request->port_number();
+        master.serverId = server_id;
+        master.portNum = port_num;
 
-        //master_db.pushback(master);
+        master_db.push_back(master);
+
+        //f()
         
-        if(master_db[master.serverId].isActive = true){
-            return Status::OK;
-        } else{
-            return Status::OK;
-        }
+        // if(master_db[master.serverId].isActive = true){
+        //     return Status::OK;
+        // } else{
+        //     return Status::OK;
+        // }
         
         std::cout << "Coordinator Request ID: " << request->id() << std::endl;
+        reply->set_port_number(port_num);
+        reply->set_msg("Coordinator Login Successful\n");
 
-          
-        
-        // reply->set_msg("Login Successful\n");
+
         return Status::OK;
         
       }

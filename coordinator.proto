@@ -67,6 +67,7 @@ message Request{
 
 message Reply{
     string msg = 1;
+    string port_number = 2;
 }
 
 message HeartBeat{
