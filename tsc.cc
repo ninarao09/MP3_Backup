@@ -130,12 +130,14 @@ int Client::connectTo()
     coord438::Request request;
     coord438::Reply reply;
     
-    //takes id from command line and sends it to corrdinator
+    //takes id from command line and sends it to coordinator
     request.set_id(stoi(id));
+    request.set_port_number(clientPort);
+
     grpc::Status status = stubCoord_->Login(&context, request, &reply);
 
-
-    std::cout << "PortNum assigned from coordinator: " << request.port_number() << std::endl;
+    // port is sent back in the reply
+    std::cout << "PortNum assigned from coordinator: " << reply.port_number() << std::endl;
 
 
     //what??
@@ -148,13 +150,9 @@ int Client::connectTo()
     
 
     
-    
-	if (status.ok()) {
-	    grpc::CreateChannel("localhost:3010", grpc::InsecureChannelCredentials());
-	        
+    IReply ire = Login();
+	if (ire.grpc_status.ok()) {
         return 1; // return 1 if success, otherwise return -1
-            
-	    
     } else {
         return -1;
     }

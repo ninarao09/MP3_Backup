@@ -59,12 +59,14 @@ class CoordinatorServiceImpl final : public CoordinatorService::Service {
         // client assigned cluster is server id
         int server_id = (request->id()) % 3 + 1;
 
-        //Check if any clients have joined and assign master port
+        //Assign master port
         std::string port_num;
-        if(master_db.size() == 0){
-            port_num = "9190";
-        } else{
-            port_num = std::to_string(stoi(master_db[master_db.size()-1].portNum) + 100);
+        if(server_id == 1){
+          port_num = request->port_number();
+        }else if(server_id == 2){
+          port_num = std::to_string(stoi(request->port_number()) + 100);
+        }else if(server_id == 3){
+          port_num = std::to_string(stoi(request->port_number()) + 200);
         }
 
 
@@ -75,14 +77,10 @@ class CoordinatorServiceImpl final : public CoordinatorService::Service {
 
         
         //Create master
-        Servers master;
-
-        master.serverId = server_id;
-        master.portNum = port_num;
-
-        master_db.push_back(master);
-
-        //f()
+        //Servers master;
+        //master.serverId = server_id;
+        //master.portNum = port_num;
+        //master_db.push_back(master);
         
         // if(master_db[master.serverId].isActive = true){
         //     return Status::OK;
