@@ -44,7 +44,6 @@
 #include <unistd.h>
 #include <google/protobuf/util/time_util.h>
 #include <grpc++/grpc++.h>
-#include "database.h"
 
 #include "sns.grpc.pb.h"
 
@@ -62,6 +61,13 @@ using csce438::ListReply;
 using csce438::Request;
 using csce438::Reply;
 using csce438::SNSService;
+
+
+std::string serverType = "master";
+std::string coordinatorIP = "localhost";
+std::string coordinatorPort = "3000";
+std::string id = "1";
+std::string clientPort = "8080";
 
 struct Client {
   std::string username;
@@ -92,6 +98,7 @@ int find_user(std::string username){
 class SNSServiceImpl final : public SNSService::Service {
   
   Status List(ServerContext* context, const Request* request, ListReply* list_reply) override {
+    std::cout << "I am in the list function server side" << std::endl;
     Client user = client_db[find_user(request->username())];
     int index = 0;
     for(Client c : client_db){
@@ -108,47 +115,49 @@ class SNSServiceImpl final : public SNSService::Service {
     std::string username1 = request->username();
     std::string username2 = request->arguments(0);
     int join_index = find_user(username2);
-    
-    if(join_index < 0 || username1 == username2){
-      reply->set_msg("Join Failed -- Invalid Username");
-    }
+    if(join_index < 0 || username1 == username2)
+      reply->set_msg("unkown user name");
     else{
       Client *user1 = &client_db[find_user(username1)];
       Client *user2 = &client_db[join_index];
-      
       if(std::find(user1->client_following.begin(), user1->client_following.end(), user2) != user1->client_following.end()){
-	      reply->set_msg("Join Failed -- Already Following User");
+	      reply->set_msg("you have already joined");
         return Status::OK;
       }
-      
       user1->client_following.push_back(user2);
       user2->client_followers.push_back(user1);
-      reply->set_msg("Join Successful");
+      reply->set_msg("Follow Successful");
     }
     return Status::OK; 
   }
 
-  Status Login(ServerContext* context, const Request* request, Reply* reply) override {
-    Client c;
-    std::string username = request->username();
-    int user_index = find_user(username);
-    if(user_index < 0){
-      c.username = username;
-      client_db.push_back(c);
-      reply->set_msg("Login Successful!");
-    }
-    else{ 
-      Client *user = &client_db[user_index];
-      if(user->connected)
-        reply->set_msg("Invalid Username");
-      else{
-        std::string msg = "Welcome Back " + user->username;
-	      reply->set_msg(msg);
-        user->connected = true;
-      }
-    }
-    return Status::OK;
+  Status getServerPort(ServerContext* context, const Request* request, Reply* reply) override {
+    reply->set_msg(clientPort + "," + serverType);
+
+    return Status::OK; 
   }
+  
+  // Status Login(ServerContext* context, const Request* request, Reply* reply) override {
+  //   Client c;
+  //   std::string username = request->username();
+  //   int user_index = find_user(username);
+  //   if(user_index < 0){
+  //     c.username = username;
+  //     client_db.push_back(c);
+  //     reply->set_msg("Login Successful!");
+  //   }
+  //   else{ 
+  //     Client *user = &client_db[user_index];
+  //     if(user->connected)
+  //       reply->set_msg("Invalid Username");
+  //     else{
+  //       std::string msg = "Welcome Back " + user->username;
+	//       reply->set_msg(msg);
+  //       user->connected = true;
+  //     }
+  //   }
+  //   return Status::OK;
+  // }
 
   Status Timeline(ServerContext* context, 
 		ServerReaderWriter<Message, Message>* stream) override {
@@ -188,8 +197,8 @@ class SNSServiceImpl final : public SNSService::Service {
         }
         Message new_msg; 
  	//Send the newest messages to the client to be displayed
-	      for(int i = 0; i<newest_twenty.size(); i++){
-	        new_msg.set_msg(newest_twenty[i]);
+	for(int i = 0; i<newest_twenty.size(); i++){
+	  new_msg.set_msg(newest_twenty[i]);
           stream->Write(new_msg);
         }    
         continue;
@@ -199,14 +208,14 @@ class SNSServiceImpl final : public SNSService::Service {
       for(it = c->client_followers.begin(); it!=c->client_followers.end(); it++){
         Client *temp_client = *it;
       	if(temp_client->stream!=0 && temp_client->connected)
-	      temp_client->stream->Write(message);
+	  temp_client->stream->Write(message);
         //For each of the current user's followers, put the message in their following.txt file
         std::string temp_username = temp_client->username;
         std::string temp_file = temp_username + "following.txt";
-	      std::ofstream following_file(temp_file,std::ios::app|std::ios::out|std::ios::in);
-	      following_file << fileinput;
+	std::ofstream following_file(temp_file,std::ios::app|std::ios::out|std::ios::in);
+	following_file << fileinput;
         temp_client->following_file_size++;
-	      std::ofstream user_file(temp_username + ".txt",std::ios::app|std::ios::out|std::ios::in);
+	std::ofstream user_file(temp_username + ".txt",std::ios::app|std::ios::out|std::ios::in);
         user_file << fileinput;
       }
     }
@@ -232,17 +241,25 @@ void RunServer(std::string port_no) {
 
 int main(int argc, char** argv) {
   
-  std::string port = "3010";
+
   int opt = 0;
-  while ((opt = getopt(argc, argv, "p:")) != -1){
+  while ((opt = getopt(argc, argv, "i:c:p:d:t:")) != -1){
     switch(opt) {
+      case 'i':
+                coordinatorIP = optarg;break;
+      case 'c':
+                coordinatorPort = optarg;break;
       case 'p':
-          port = optarg;break;
+                clientPort = optarg;break;
+      case 'd':
+                id = optarg;break;
+      case 't':
+                serverType = optarg;break;
       default:
 	  std::cerr << "Invalid Command Line Argument\n";
     }
   }
-  RunServer(port);
+  RunServer(clientPort);
 
   return 0;
 }

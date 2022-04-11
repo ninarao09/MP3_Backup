@@ -37,6 +37,7 @@ import "google/protobuf/timestamp.proto";
 service CoordinatorService{
 
     rpc Login (Request) returns (Reply) {}
+    rpc getServerPort (Request) returns (Reply) {}
     // Bidirectional Communication to check on server interaction
     rpc ServerCommunicate (stream HeartBeat) returns (stream HeartBeat) {}
  
@@ -62,7 +63,7 @@ message Request{
     // the id of the request
     int32 id = 3;
     // the type of server
-    ServerType server_type = 4;
+    string server_type = 4;
 }
 
 message Reply{

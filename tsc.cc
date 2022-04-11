@@ -27,10 +27,6 @@ using csce438::SNSService;
 
 using coord438::CoordinatorService;
 
-//using coord438::Client;
-
-
-
 
 Message MakeMessage(const std::string& username, const std::string& msg) {
     Message m;
@@ -131,16 +127,15 @@ int Client::connectTo()
     coord438::Reply reply;
     
     //takes id from command line and sends it to coordinator
-    request.set_id(stoi(id));
-    request.set_port_number(clientPort);
-
-    grpc::Status status = stubCoord_->Login(&context, request, &reply);
 
     // port is sent back in the reply
-    std::cout << "PortNum assigned from coordinator: " << reply.port_number() << std::endl;
+    //std::cout << "PortNum assigned from coordinator: " << reply.port_number() << std::endl;
+    //IReply ire;
+    //ire.grpc_status = status;
+    //std::cout << "status: " << ire.grpc_status << std::endl;
 
 
-    //what??
+    //Use port from coordinator for server stub
     std::string login_info2 = "localhost:" + clientPort;
 
     stub_ = std::unique_ptr<SNSService::Stub>(SNSService::NewStub(
@@ -151,8 +146,13 @@ int Client::connectTo()
 
     
     IReply ire = Login();
-	if (ire.grpc_status.ok()) {
+
+	if (ire.comm_status == SUCCESS) {
+	    //grpc::CreateChannel(login_info2, grpc::InsecureChannelCredentials());
+	        
         return 1; // return 1 if success, otherwise return -1
+            
+	    
     } else {
         return -1;
     }
@@ -212,11 +212,18 @@ IReply Client::processCommand(std::string& input)
     if (index != std::string::npos) {
         std::string cmd = input.substr(0, index);
 
+
+        /*
+        if (input.length() == index + 1) {
+            std::cout << "Invalid Input -- No Arguments Given\n";
+        }
+        */
+
         std::string argument = input.substr(index+1, (input.length()-index));
 
         if (cmd == "FOLLOW") {
             return Follow(argument);
-        } 
+        }
     } else {
         if (input == "LIST") {
             return List();
@@ -262,7 +269,9 @@ IReply Client::List() {
     //Context for the client
     ClientContext context;
 
+    //std::cout << "before calling stub" <<std::endl;
     Status status = stub_->List(&context, request, &list_reply);
+
     IReply ire;
     ire.grpc_status = status;
     //Loop through list_reply.all_users and list_reply.following_users
@@ -305,13 +314,29 @@ IReply Client::Follow(const std::string& username2) {
     return ire;
 }
 
+
 IReply Client::Login() {
-    Request request;
-    request.set_username(id);
-    Reply reply;
+    coord438::Request request;
+    coord438::Reply reply;
     ClientContext context;
 
-    Status status = stub_->Login(&context, request, &reply);
+    ClientContext context2;
+    Request request2;
+    Reply reply2;
+
+    Status status2 = stub_->getServerPort(&context2, request2, &reply2);
+    
+
+    request.set_id(stoi(id));
+
+    std::string port_num = reply2.msg().substr(0, reply2.msg().find(","));
+    std::string serverType = reply2.msg().substr(reply2.msg().find(",")+1, reply2.msg().length()-1);
+
+    request.set_port_number(port_num);
+    request.set_server_type(serverType);
+    Status status = stubCoord_->Login(&context, request, &reply);
+
+    std::cout << "port number: " << port_num << std::endl;
 
     IReply ire;
     ire.grpc_status = status;
