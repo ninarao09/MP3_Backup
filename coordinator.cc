@@ -47,39 +47,13 @@ The Coordinator also keeps track of the Follower Synchronizer Fi IP/port
 number in each cluster. More implementation details are below.
 */
 
-struct Client {
-  std::string username;
-  bool connected = true;
-  int following_file_size = 0;
-  std::vector<Client*> client_followers;
-  std::vector<Client*> client_following;
-  ServerReaderWriter<Message, Message>* stream = 0;
-  bool operator==(const Client& c1) const{
-    return (username == c1.username);
-  }
-};
-
-//Vector that stores every client that has been created
-std::vector<Client> client_db;
-
-
+//Vector for the routing tables
 std::vector<Servers> master_db;
 std::vector<Servers> slave_db;
 std::vector<Servers> followerSyncer_db;
 
-//Helper function used to find a Client object given its username
-int find_user(std::string username){
-  int index = 0;
-  for(Client c : client_db){
-    if(c.username == username)
-      return index;
-    index++;
-  }
-  return -1;
-}
 
 int print_db(std::vector<Servers> db){
-  int index = 0;
   for(Servers s : db){
     std::cout << "printing from db: " << s.serverId << std::endl;
     std::cout << "printing from db: "  << s.portNum << std::endl;
@@ -103,75 +77,50 @@ class CoordinatorServiceImpl final : public CoordinatorService::Service {
   
       Status Login(ServerContext* context, const Request* request, Reply* reply) override {
           
-          Client c;
-          std::string username = std::to_string(request->id());
-          int user_index = find_user(username);
-          if(user_index < 0){
-            c.username = username;
-            client_db.push_back(c);
-            reply->set_msg("Login Successful!");
-          }
-          else{ 
-            Client *user = &client_db[user_index];
-            if(user->connected)
-              reply->set_msg("Invalid Username");
-            else{
-              std::string msg = "Welcome Back " + user->username;
-              reply->set_msg(msg);
-              user->connected = true;
-            }
-          }
-          
 
         // first take client and assign is to a cluster (Xi) using mod3 formula
         // client assigned cluster is server id
-        int server_id = (request->id()) % 3 + 1;
+        int server_id = (request->id() % 3) + 1;
+        std::string server_type = request->server_type();
+
+        print_db(master_db);
+
+    
+        //if(server_type == "master"){
+          reply->set_port_number(find_portNumber(std::to_string(server_id), master_db));
+        //} else if (server_type == "slave"){
+          //reply->set_port_number(find_portNumber(std::to_string(server_id), slave_db));
+        //}
+
+
+        return Status::OK;
+        
+      }
+
+      Status populateRoutingTable(ServerContext* context, const Request* request, Reply* reply) override {
+        
+        int server_id = request->id();
         std::string port_num;
-
-        //Assign master port - dummy
-        // std::string port_num;
-        // if(server_id == 1){
-        //   port_num = request->port_number();
-        // }else if(server_id == 2){
-        //   port_num = std::to_string(stoi(request->port_number()) + 100);
-        // }else if(server_id == 3){
-        //   port_num = std::to_string(stoi(request->port_number()) + 200);
-        // }
-
-
         Servers serverInstance;
+
         if(request->server_type() == "master"){
           if(master_db.size() < 3){
             serverInstance.serverId = server_id;
             serverInstance.portNum = request->port_number();
             serverInstance.isActive = true;
             master_db.push_back(serverInstance);
-          } else{
-            port_num = find_portNumber(std::to_string(server_id), master_db);
-            reply->set_port_number(port_num);
-            return Status::OK;
           }
-
-        } else if(request->server_type() == "slave"){
-
-        } else{
-
+        }else if (request->server_type() == "slave") {
+          if(slave_db.size() < 3){
+            serverInstance.serverId = server_id;
+            serverInstance.portNum = request->port_number();
+            serverInstance.isActive = true;
+            master_db.push_back(serverInstance);
+          }
         }
-
-        print_db(master_db);
-
-
-
-        std::cout  << "server id: " << server_id << std::endl;
-        std::cout  << "portNum : " << request->port_number() << std::endl;
-        std::cout  << "serverType : " << request->server_type() << std::endl;
-        std::cout << "Coordinator Request ID: " << request->id() << std::endl;
-
-        reply->set_port_number(request->port_number());
-
-
+          
         return Status::OK;
-        
+  
       }
 
       Status ServerCommunicate(ServerContext* context, ServerReaderWriter<HeartBeat, HeartBeat>* stream) override {

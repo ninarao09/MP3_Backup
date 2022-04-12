@@ -12,4 +12,10 @@ struct Servers{
   //std::vector<Client> clientInCluster;
 };
 
+
+// class Common {
+//   public:
+//     static std::vector<Servers> master_db;
+// };
+
 #endif

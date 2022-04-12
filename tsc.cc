@@ -112,42 +112,39 @@ int Client::connectTo()
     // a member variable in your own Client class.
     // Please refer to gRpc tutorial how to create a stub.
 	// ------------------------------------------------------------
-	
+
+//Use port from coordinator for server stub
+    
 	//Connect to Coordinator to get master port info
     std::string login_info = "localhost:" + coordinatorPort;
-
     
     stubCoord_ = std::unique_ptr<CoordinatorService::Stub>(CoordinatorService::NewStub(
               grpc::CreateChannel(
                     login_info, grpc::InsecureChannelCredentials())));
 
-    //call login on the coordinator side to recieve the client's master ip/port
+    
+
+    //call login on the coordinator side to recieve the client's master ip/port    
     ClientContext context;
     coord438::Request request;
     coord438::Reply reply;
     
     //takes id from command line and sends it to coordinator
+    request.set_id(stoi(id));
+    grpc::Status status = stubCoord_->Login(&context, request, &reply);
 
-    // port is sent back in the reply
-    //std::cout << "PortNum assigned from coordinator: " << reply.port_number() << std::endl;
-    //IReply ire;
-    //ire.grpc_status = status;
-    //std::cout << "status: " << ire.grpc_status << std::endl;
+    std::cout << "Connected to MASTER server at " << "localhost:" << reply.port_number() << std::endl;
 
-
-    //Use port from coordinator for server stub
-    std::string login_info2 = "localhost:" + clientPort;
-
+    std::string login_info2 = "localhost:" + reply.port_number();
     stub_ = std::unique_ptr<SNSService::Stub>(SNSService::NewStub(
                grpc::CreateChannel(
                     login_info2, grpc::InsecureChannelCredentials())));
-                    
-    
+
 
     
     IReply ire = Login();
-
-	if (ire.comm_status == SUCCESS) {
+ 
+	if (ire.comm_status == SUCCESS && status.ok()) {
 	    //grpc::CreateChannel(login_info2, grpc::InsecureChannelCredentials());
 	        
         return 1; // return 1 if success, otherwise return -1
@@ -316,27 +313,12 @@ IReply Client::Follow(const std::string& username2) {
 
 
 IReply Client::Login() {
-    coord438::Request request;
-    coord438::Reply reply;
+    Request request;
+    request.set_username(id);
+    Reply reply;
     ClientContext context;
 
-    ClientContext context2;
-    Request request2;
-    Reply reply2;
-
-    Status status2 = stub_->getServerPort(&context2, request2, &reply2);
-    
-
-    request.set_id(stoi(id));
-
-    std::string port_num = reply2.msg().substr(0, reply2.msg().find(","));
-    std::string serverType = reply2.msg().substr(reply2.msg().find(",")+1, reply2.msg().length()-1);
-
-    request.set_port_number(port_num);
-    request.set_server_type(serverType);
-    Status status = stubCoord_->Login(&context, request, &reply);
-
-    std::cout << "port number: " << port_num << std::endl;
+    Status status = stub_->Login(&context, request, &reply);
 
     IReply ire;
     ire.grpc_status = status;

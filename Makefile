@@ -21,7 +21,7 @@ all: system-check tsc tsd coordinator
 tsc: sns.pb.o sns.grpc.pb.o coordinator.pb.o coordinator.grpc.pb.o tsc.o 
 	$(CXX) $^ $(LDFLAGS) -g -o $@
 
-tsd: sns.pb.o sns.grpc.pb.o tsd.o
+tsd: sns.pb.o sns.grpc.pb.o coordinator.pb.o coordinator.grpc.pb.o tsd.o
 	$(CXX) $^ $(LDFLAGS) -g -o $@
 	
 coordinator: coordinator.pb.o coordinator.grpc.pb.o coordinator.o

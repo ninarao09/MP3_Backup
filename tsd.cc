@@ -44,8 +44,11 @@
 #include <unistd.h>
 #include <google/protobuf/util/time_util.h>
 #include <grpc++/grpc++.h>
+#include "database.h"
 
 #include "sns.grpc.pb.h"
+#include "coordinator.grpc.pb.h"
+
 
 using google::protobuf::Timestamp;
 using google::protobuf::Duration;
@@ -61,6 +64,8 @@ using csce438::ListReply;
 using csce438::Request;
 using csce438::Reply;
 using csce438::SNSService;
+using coord438::CoordinatorService;
+
 
 
 std::string serverType = "master";
@@ -137,27 +142,27 @@ class SNSServiceImpl final : public SNSService::Service {
     return Status::OK; 
   }
   
-  // Status Login(ServerContext* context, const Request* request, Reply* reply) override {
-  //   Client c;
-  //   std::string username = request->username();
-  //   int user_index = find_user(username);
-  //   if(user_index < 0){
-  //     c.username = username;
-  //     client_db.push_back(c);
-  //     reply->set_msg("Login Successful!");
-  //   }
-  //   else{ 
-  //     Client *user = &client_db[user_index];
-  //     if(user->connected)
-  //       reply->set_msg("Invalid Username");
-  //     else{
-  //       std::string msg = "Welcome Back " + user->username;
-	//       reply->set_msg(msg);
-  //       user->connected = true;
-  //     }
-  //   }
-  //   return Status::OK;
-  // }
+  Status Login(ServerContext* context, const Request* request, Reply* reply) override {
+    Client c;
+    std::string username = request->username();
+    int user_index = find_user(username);
+    if(user_index < 0){
+      c.username = username;
+      client_db.push_back(c);
+      reply->set_msg("Login Successful!");
+    }
+    else{ 
+      Client *user = &client_db[user_index];
+      if(user->connected)
+        reply->set_msg("Invalid Username");
+      else{
+        std::string msg = "Welcome Back " + user->username;
+	      reply->set_msg(msg);
+        user->connected = true;
+      }
+    }
+    return Status::OK;
+  }
 
   Status Timeline(ServerContext* context, 
 		ServerReaderWriter<Message, Message>* stream) override {
@@ -236,6 +241,24 @@ void RunServer(std::string port_no) {
   std::unique_ptr<Server> server(builder.BuildAndStart());
   std::cout << "Server listening on " << server_address << std::endl;
 
+  //here I should push into the master db or call the get server functon
+  std::string login_info = "localhost:" + coordinatorPort;
+
+  std::unique_ptr<CoordinatorService::Stub> stubCoord_ = std::unique_ptr<CoordinatorService::Stub>(CoordinatorService::NewStub(
+               grpc::CreateChannel(
+                    login_info, grpc::InsecureChannelCredentials())));
+
+  grpc::ClientContext context;
+  coord438::Request request;
+  coord438::Reply reply;
+    
+  //takes id from command line and sends it to coordinator
+  request.set_id(stoi(id));
+  request.set_port_number(clientPort);
+  request.set_server_type(serverType);
+
+  grpc::Status status = stubCoord_->populateRoutingTable(&context, request, &reply);
+
   server->Wait();
 }
 
@@ -260,6 +283,8 @@ int main(int argc, char** argv) {
     }
   }
   RunServer(clientPort);
+
+  
 
   return 0;
 }
