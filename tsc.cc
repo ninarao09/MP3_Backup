@@ -133,7 +133,7 @@ int Client::connectTo()
     request.set_id(stoi(id));
     grpc::Status status = stubCoord_->Login(&context, request, &reply);
 
-    std::cout << "Connected to MASTER server at " << "localhost:" << reply.port_number() << std::endl;
+    
 
     std::string login_info2 = "localhost:" + reply.port_number();
     stub_ = std::unique_ptr<SNSService::Stub>(SNSService::NewStub(
@@ -141,6 +141,7 @@ int Client::connectTo()
                     login_info2, grpc::InsecureChannelCredentials())));
 
 
+    std::cout << "Connected to MASTER server at " << "localhost:" << reply.port_number() << std::endl;
     
     IReply ire = Login();
  

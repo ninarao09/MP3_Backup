@@ -41,6 +41,7 @@
 #include <memory>
 #include <string>
 #include <stdlib.h>
+#include <sys/stat.h>
 #include <unistd.h>
 #include <google/protobuf/util/time_util.h>
 #include <grpc++/grpc++.h>
@@ -100,19 +101,37 @@ int find_user(std::string username){
   return -1;
 }
 
+void addClientToFile(std::string client_id, std::string file){
+  std::string filename = file;
+  std::ofstream user_file(filename, std::ios::app|std::ios::out|std::ios::in);
+  user_file<<client_id<<std::endl;
+  
+}
+
 class SNSServiceImpl final : public SNSService::Service {
   
   Status List(ServerContext* context, const Request* request, ListReply* list_reply) override {
     std::cout << "I am in the list function server side" << std::endl;
     Client user = client_db[find_user(request->username())];
     int index = 0;
-    for(Client c : client_db){
-      list_reply->add_all_users(c.username);
+
+    std::fstream newfile;
+    newfile.open("all_clients.txt",std::ios::in); //open a file to perform read operation using file object
+    if (newfile.is_open()){   //checking whether the file is open
+      std::string tp;
+      while(getline(newfile, tp)){ //read data from file object and put it into string.
+        list_reply->add_all_users(tp);
+      }
+      newfile.close(); //close the file object.
     }
+
     std::vector<Client*>::const_iterator it;
     for(it = user.client_followers.begin(); it!=user.client_followers.end(); it++){
       list_reply->add_followers((*it)->username);
     }
+
+
+
     return Status::OK;
   }
 
@@ -120,7 +139,7 @@ class SNSServiceImpl final : public SNSService::Service {
     std::string username1 = request->username();
     std::string username2 = request->arguments(0);
     int join_index = find_user(username2);
-    if(join_index < 0 || username1 == username2)
+    if(username1 == username2)
       reply->set_msg("unkown user name");
     else{
       Client *user1 = &client_db[find_user(username1)];
@@ -132,6 +151,8 @@ class SNSServiceImpl final : public SNSService::Service {
       user1->client_following.push_back(user2);
       user2->client_followers.push_back(user1);
       reply->set_msg("Follow Successful");
+
+      addClientToFile(username2, username1 + "_followers.txt");
     }
     return Status::OK; 
   }
@@ -150,6 +171,7 @@ class SNSServiceImpl final : public SNSService::Service {
       c.username = username;
       client_db.push_back(c);
       reply->set_msg("Login Successful!");
+      addClientToFile(username, "all_clients.txt");
     }
     else{ 
       Client *user = &client_db[user_index];
@@ -258,6 +280,10 @@ void RunServer(std::string port_no) {
   request.set_server_type(serverType);
 
   grpc::Status status = stubCoord_->populateRoutingTable(&context, request, &reply);
+
+  // make directory of Type and id storing all the context file
+  std::string dirname = serverType+id;
+  int hello = mkdir(dirname.c_str(),0777);
 
   server->Wait();
 }
