@@ -105,7 +105,6 @@ void addClientToFile(std::string client_id, std::string file){
   std::string filename = file;
   std::ofstream user_file(filename, std::ios::app|std::ios::out|std::ios::in);
   user_file<<client_id<<std::endl;
-  
 }
 
 class SNSServiceImpl final : public SNSService::Service {
@@ -122,13 +121,23 @@ class SNSServiceImpl final : public SNSService::Service {
       while(getline(newfile, tp)){ //read data from file object and put it into string.
         list_reply->add_all_users(tp);
       }
-      newfile.close(); //close the file object.
     }
 
-    std::vector<Client*>::const_iterator it;
-    for(it = user.client_followers.begin(); it!=user.client_followers.end(); it++){
-      list_reply->add_followers((*it)->username);
+    std::cout << "I am in the list function server side - after listing all clients" << std::endl;
+
+    std::fstream newfile2;
+    newfile2.open(request->username()+"_followers.txt",std::ios::in); //open a file to perform read operation using file object
+    if (newfile2.is_open()){   //checking whether the file is open
+      std::string tp;
+      while(getline(newfile2, tp)){ //read data from file object and put it into string.
+        list_reply->add_followers(tp);
+      }
     }
+
+    // std::vector<Client*>::const_iterator it;
+    // for(it = user.client_followers.begin(); it!=user.client_followers.end(); it++){
+    //   list_reply->add_followers((*it)->username);
+    // }
 
 
 
@@ -142,17 +151,17 @@ class SNSServiceImpl final : public SNSService::Service {
     if(username1 == username2)
       reply->set_msg("unkown user name");
     else{
-      Client *user1 = &client_db[find_user(username1)];
-      Client *user2 = &client_db[join_index];
-      if(std::find(user1->client_following.begin(), user1->client_following.end(), user2) != user1->client_following.end()){
-	      reply->set_msg("you have already joined");
-        return Status::OK;
-      }
-      user1->client_following.push_back(user2);
-      user2->client_followers.push_back(user1);
+      // Client *user1 = &client_db[find_user(username1)];
+      // Client *user2 = &client_db[join_index];
+      // if(std::find(user1->client_following.begin(), user1->client_following.end(), user2) != user1->client_following.end()){
+	    //   reply->set_msg("you have already joined");
+      //   return Status::OK;
+      // }
+      //user1->client_following.push_back(user2);
+      //user2->client_followers.push_back(user1);
       reply->set_msg("Follow Successful");
 
-      addClientToFile(username2, username1 + "_followers.txt");
+      addClientToFile(username1, username2 + "_followers.txt");
     }
     return Status::OK; 
   }
@@ -166,6 +175,21 @@ class SNSServiceImpl final : public SNSService::Service {
   Status Login(ServerContext* context, const Request* request, Reply* reply) override {
     Client c;
     std::string username = request->username();
+
+    //check if user was created already
+    std::fstream newfile;
+    newfile.open("all_clients.txt",std::ios::in); //open a file to perform read operation using file object
+    if (newfile.is_open()){   //checking whether the file is open
+      std::string tp;
+      while(getline(newfile, tp)){ //read data from file object and put it into string.
+        if(tp == username){
+          return Status::OK;
+        }
+      }
+      newfile.close(); //close the file object.
+    }
+
+
     int user_index = find_user(username);
     if(user_index < 0){
       c.username = username;

@@ -4,6 +4,7 @@
 #include <vector>
 #include <string>
 #include <unistd.h>
+#include <fstream>
 #include <grpc++/grpc++.h>
 #include "client.h"
 
@@ -147,6 +148,8 @@ int Client::connectTo()
  
 	if (ire.comm_status == SUCCESS && status.ok()) {
 	    //grpc::CreateChannel(login_info2, grpc::InsecureChannelCredentials());
+        std::string filename = id+"_followers.txt";
+        std::ofstream user_file(filename, std::ios::app|std::ios::out|std::ios::in);
 	        
         return 1; // return 1 if success, otherwise return -1
             

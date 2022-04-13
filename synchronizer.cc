@@ -40,7 +40,6 @@ class SynchronizerServiceImpl final : public SynchronizerService::Service {
           
         return Status::OK;
 
-        
       }
       
 };

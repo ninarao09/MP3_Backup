@@ -38,6 +38,9 @@ synchronizer: synchronizer.pb.o synchronizer.grpc.pb.o synchronizer.o
 %.pb.cc: %.proto
 	$(PROTOC) --cpp_out=. $<
 
+test:
+	rm -f *.txt
+
 clean:
 	rm -f *.txt *.o *.pb.cc *.pb.h tsc tsd coordinator synchronizer
 
