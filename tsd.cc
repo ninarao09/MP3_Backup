@@ -142,10 +142,6 @@ void sendHeartbeat(const std::string &id) {
               while (1) {
                 std::this_thread::sleep_for(std::chrono::seconds(10));
 
-                //free(m);
-                //google::protobuf::Timestamp timestamp2 = google::protobuf::util::TimeUtil::GetCurrentTime();
-                //m.set_allocated_timestamp(&timestamp2);
-
                 google::protobuf::Timestamp* timestamp2 = new google::protobuf::Timestamp();
                 timestamp2->set_seconds(time(NULL));
                 timestamp2->set_nanos(0);

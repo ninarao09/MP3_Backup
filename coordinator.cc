@@ -84,6 +84,23 @@ void displayTimestamp(std::time_t& time){
     std::cout << "Timestamp: " << "(" << t_str << ") >> " << std::endl;
 }
 
+Servers findServer(std::string server_id){
+
+    for(Servers s : master_db){
+      if(s.serverId == stoi(server_id) && s.isActive == true){
+        return s;
+      } else if(s.serverId == stoi(server_id) && s.isActive == false){
+          for(Servers s : slave_db){
+            if(s.serverId == stoi(server_id)){
+              return s;
+            }
+          }
+      }
+    }
+  
+}
+
+
 class CoordinatorServiceImpl final : public CoordinatorService::Service {
   
       Status Login(ServerContext* context, const Request* request, Reply* reply) override {
@@ -96,12 +113,12 @@ class CoordinatorServiceImpl final : public CoordinatorService::Service {
 
         print_db(master_db);
 
-    
-        //if(server_type == "master"){
-          reply->set_port_number(find_portNumber(std::to_string(server_id), master_db));
-        //} else if (server_type == "slave"){
-          //reply->set_port_number(find_portNumber(std::to_string(server_id), slave_db));
-        //}
+        Servers s = findServer(std::to_string(server_id));
+        
+
+            //should be s.portNum
+        reply->set_port_number(s.portNum);
+        //reply->set_port_number(find_portNumber(std::to_string(server_id), master_db));
 
 
         return Status::OK;
@@ -143,7 +160,11 @@ class CoordinatorServiceImpl final : public CoordinatorService::Service {
           //std::this_thread::sleep_for(std::chrono::seconds(10));
           std::cout << "Testing heartbeat functionality: " << heartbeat.server_id() << std::endl;
           std::string time = google::protobuf::util::TimeUtil::ToString(heartbeat.timestamp());
+          Servers server = findServer(heartbeat.server_id());
+          server.timestamp = time;
           std::cout << "Timestamp: " << time << std::endl;
+
+          //if timestamp in server instance - current time is greate than 30, set master status to false ans switch to slave
 
           std::time_t times = google::protobuf::util::TimeUtil::TimestampToTimeT(heartbeat.timestamp());
           displayTimestamp(times);
