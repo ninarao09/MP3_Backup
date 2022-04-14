@@ -4,18 +4,23 @@
 #include <vector>
 #include <string>
 #include <unistd.h>
+#include <chrono>
+#include <time.h>
 #include "database.h"
 #include <grpc++/grpc++.h>
+
+#include "sns.grpc.pb.h"
+#include "coordinator.grpc.pb.h"
+
+
+#include <google/protobuf/timestamp.pb.h>
+#include <google/protobuf/util/time_util.h>
+#include <google/protobuf/duration.pb.h>
 
 
 #define MAX_ROOM 10
 
-#include "coordinator.grpc.pb.h"
-#include "sns.grpc.pb.h"
-
-
 using grpc::Server;
-
 using grpc::ServerBuilder;
 using grpc::ServerContext;
 using grpc::Status;
@@ -73,6 +78,12 @@ std::string find_portNumber(std::string serverID, std::vector<Servers> db){
   return "error";
 }
 
+void displayTimestamp(std::time_t& time){
+    std::string t_str(std::ctime(&time));
+    t_str[t_str.size()-1] = '\0';
+    std::cout << "Timestamp: " << "(" << t_str << ") >> " << std::endl;
+}
+
 class CoordinatorServiceImpl final : public CoordinatorService::Service {
   
       Status Login(ServerContext* context, const Request* request, Reply* reply) override {
@@ -124,10 +135,21 @@ class CoordinatorServiceImpl final : public CoordinatorService::Service {
       }
 
       Status ServerCommunicate(ServerContext* context, ServerReaderWriter<HeartBeat, HeartBeat>* stream) override {
-          
-        return Status::OK;
-
+        //Communicate with server to check if master is still alive
         
+        coord438::HeartBeat heartbeat;
+        while(stream->Read(&heartbeat)) {
+          //if there is an absence of 2 heartbeats then coordinator deems Mi to fails and switches to slave
+          //std::this_thread::sleep_for(std::chrono::seconds(10));
+          std::cout << "Testing heartbeat functionality: " << heartbeat.server_id() << std::endl;
+          std::string time = google::protobuf::util::TimeUtil::ToString(heartbeat.timestamp());
+          std::cout << "Timestamp: " << time << std::endl;
+
+          std::time_t times = google::protobuf::util::TimeUtil::TimestampToTimeT(heartbeat.timestamp());
+          displayTimestamp(times);
+        }
+
+        return Status::OK;
       }
       
 };

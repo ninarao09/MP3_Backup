@@ -42,9 +42,11 @@
 #include <string>
 #include <stdlib.h>
 #include <sys/stat.h>
+#include <thread>
 #include <unistd.h>
 #include <google/protobuf/util/time_util.h>
 #include <grpc++/grpc++.h>
+#include <chrono>
 #include "database.h"
 
 #include "sns.grpc.pb.h"
@@ -66,6 +68,13 @@ using csce438::Request;
 using csce438::Reply;
 using csce438::SNSService;
 using coord438::CoordinatorService;
+using coord438::HeartBeat;
+
+using grpc::Channel;
+using grpc::ClientContext;
+using grpc::ClientReader;
+using grpc::ClientReaderWriter;
+using grpc::ClientWriter;
 
 
 
@@ -74,6 +83,7 @@ std::string coordinatorIP = "localhost";
 std::string coordinatorPort = "3000";
 std::string id = "1";
 std::string clientPort = "8080";
+std::unique_ptr<CoordinatorService::Stub> stubCoord_;
 
 struct Client {
   std::string username;
@@ -106,6 +116,60 @@ void addClientToFile(std::string client_id, std::string file){
   std::ofstream user_file(filename, std::ios::app|std::ios::out|std::ios::in);
   user_file<<client_id<<std::endl;
 }
+
+void sendHeartbeat(const std::string &id) {
+    
+    grpc::ClientContext context;
+
+    std::shared_ptr<ClientReaderWriter<HeartBeat, HeartBeat>> stream(
+            stubCoord_->ServerCommunicate(&context));
+
+    //Thread used to read chat messages and send them to the server
+    std::thread writer([id, stream]() {
+            HeartBeat m;
+            m.set_server_id(id);
+            m.set_s_type(serverType);
+
+            //google::protobuf::Timestamp timestamp = google::protobuf::util::TimeUtil::GetCurrentTime();
+            
+
+            google::protobuf::Timestamp* timestamp = new google::protobuf::Timestamp();
+            timestamp->set_seconds(time(NULL));
+            timestamp->set_nanos(0);
+            m.set_allocated_timestamp(timestamp);
+
+            stream->Write(m);
+              while (1) {
+                std::this_thread::sleep_for(std::chrono::seconds(10));
+
+                //free(m);
+                //google::protobuf::Timestamp timestamp2 = google::protobuf::util::TimeUtil::GetCurrentTime();
+                //m.set_allocated_timestamp(&timestamp2);
+
+                google::protobuf::Timestamp* timestamp2 = new google::protobuf::Timestamp();
+                timestamp2->set_seconds(time(NULL));
+                timestamp2->set_nanos(0);
+                m.set_allocated_timestamp(timestamp2);
+
+                stream->Write(m);
+              }
+            stream->WritesDone();
+            });
+
+    // std::thread reader([id, stream]() {
+    //         HeartBeat m;
+    //           while(stream->Read(&m)){
+    //             google::protobuf::Timestamp temptime = m.timestamp();
+    //             std::time_t time = temptime.seconds();
+    //           }
+    //         });
+
+    //Wait for the threads to finish
+    writer.join();
+    //reader.join();
+}
+
+
 
 class SNSServiceImpl final : public SNSService::Service {
   
@@ -290,7 +354,7 @@ void RunServer(std::string port_no) {
   //here I should push into the master db or call the get server functon
   std::string login_info = "localhost:" + coordinatorPort;
 
-  std::unique_ptr<CoordinatorService::Stub> stubCoord_ = std::unique_ptr<CoordinatorService::Stub>(CoordinatorService::NewStub(
+  stubCoord_ = std::unique_ptr<CoordinatorService::Stub>(CoordinatorService::NewStub(
                grpc::CreateChannel(
                     login_info, grpc::InsecureChannelCredentials())));
 
@@ -305,9 +369,11 @@ void RunServer(std::string port_no) {
 
   grpc::Status status = stubCoord_->populateRoutingTable(&context, request, &reply);
 
+  sendHeartbeat(id);
+
   // make directory of Type and id storing all the context file
-  std::string dirname = serverType+id;
-  int hello = mkdir(dirname.c_str(),0777);
+  // std::string dirname = serverType+id;
+  // int hello = mkdir(dirname.c_str(),0777);
 
   server->Wait();
 }
@@ -332,9 +398,15 @@ int main(int argc, char** argv) {
 	  std::cerr << "Invalid Command Line Argument\n";
     }
   }
+
+
+
   RunServer(clientPort);
 
   
 
   return 0;
 }
+
+
+

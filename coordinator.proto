@@ -73,9 +73,9 @@ message Reply{
 
 message HeartBeat{
     // id of the server
-    int32 sid = 1;
+    string server_id = 1;
     // type of the server
-    ServerType s_type = 2;
+    string s_type = 2;
     //Time the message was sent
     google.protobuf.Timestamp timestamp = 3;
 }

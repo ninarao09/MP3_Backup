@@ -5,11 +5,13 @@
 
 
 
+
+
 struct Servers{
   int serverId;
   std::string portNum;
   bool isActive = false;
-  //std::vector<Client> clientInCluster;
+  std::string timestamp;
 };
 
 
