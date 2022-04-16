@@ -25,12 +25,24 @@ using grpc::ServerReaderWriter;
 
 
 using csce438::Message;
+using coord438::CoordinatorService;
+
 using syncer438::SynchronizerService;
 using syncer438::Request;
 using syncer438::Reply;
 using syncer438::HeartBeat; 
 using syncer438::RequesterType;
 
+
+std::string serverType = "syncer";
+std::string coordinatorIP = "localhost";
+std::string coordinatorPort = "3000";
+std::string syncer_id = "1";
+std::string syncerPort = "8080";
+std::unique_ptr<CoordinatorService::Stub> stubCoord_;
+
+std::vector<std::string> all_clients;
+std::vector<std::string> followers;
 
 
 class SynchronizerServiceImpl final : public SynchronizerService::Service {
@@ -55,24 +67,50 @@ void RunServer(std::string port_no) {
   std::unique_ptr<Server> server(builder.BuildAndStart());
   std::cout << "Server listening on " << server_address << std::endl;
 
+
+  std::string login_info = coordinatorIP + ":" + coordinatorPort;
+  stubCoord_ = std::unique_ptr<CoordinatorService::Stub>(CoordinatorService::NewStub(
+               grpc::CreateChannel(
+                    login_info, grpc::InsecureChannelCredentials())));
+
+  grpc::ClientContext context;
+  coord438::Request request;
+  coord438::Reply reply;
+    
+  //takes id from command line and sends it to coordinator
+  request.set_id(stoi(syncer_id));
+  request.set_port_number(syncerPort);
+  request.set_server_type(serverType);
+
+  grpc::Status status = stubCoord_->populateRoutingTable(&context, request, &reply);
+
   server->Wait();
 }
 
 int main(int argc, char** argv) {
 
-    std::string port = "3010";
+    std::string coordinatorIP = "localhost";
+    std::string coordinatorPort = "3000";
+    std::string syncerId = "1";
+    std::string syncerPort = "10000";
     int opt = 0;
-    while ((opt = getopt(argc, argv, "p:")) != -1){
+    while ((opt = getopt(argc, argv, "i:c:p:d:")) != -1){
         switch(opt) {
+            case 'i':
+                coordinatorIP = optarg;break;
+            case 'c':
+                coordinatorPort = optarg;break;
             case 'p':
-                port = optarg;break;
+                syncerPort = optarg;break;
+            case 'd':
+                syncerId = optarg;break;
             default:
                 std::cerr << "Invalid Command Line Argument\n";
         }
     }
 
     
-    RunServer(port);
+    RunServer(syncerPort);
     
     return 0;
 }

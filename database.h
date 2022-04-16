@@ -2,6 +2,8 @@
 #define DATABASE_H_
 #include <ctype.h>
 #include "client.h"
+#include <time.h>
+
 
 
 
@@ -11,7 +13,8 @@ struct Servers{
   int serverId;
   std::string portNum;
   bool isActive = false;
-  std::string timestamp;
+  time_t timestamp;
+  std::string serverType;
 };
 
 

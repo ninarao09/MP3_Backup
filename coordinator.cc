@@ -56,6 +56,8 @@ number in each cluster. More implementation details are below.
 std::vector<Servers> master_db;
 std::vector<Servers> slave_db;
 std::vector<Servers> followerSyncer_db;
+std::time_t temp_time;
+std::time_t current_time;
 
 
 int print_db(std::vector<Servers> db){
@@ -81,7 +83,7 @@ std::string find_portNumber(std::string serverID, std::vector<Servers> db){
 void displayTimestamp(std::time_t& time){
     std::string t_str(std::ctime(&time));
     t_str[t_str.size()-1] = '\0';
-    std::cout << "Timestamp: " << "(" << t_str << ") >> " << std::endl;
+    std::cout << t_str << std::endl;
 }
 
 Servers findServer(std::string server_id){
@@ -109,15 +111,36 @@ class CoordinatorServiceImpl final : public CoordinatorService::Service {
         // first take client and assign is to a cluster (Xi) using mod3 formula
         // client assigned cluster is server id
         int server_id = (request->id() % 3) + 1;
+
         std::string server_type = request->server_type();
 
         print_db(master_db);
 
-        Servers s = findServer(std::to_string(server_id));
-        
+        google::protobuf::Timestamp timestamp = google::protobuf::Timestamp();
+        timestamp.set_seconds(time(NULL));
+        timestamp.set_nanos(0);
 
+
+        current_time = google::protobuf::util::TimeUtil::TimestampToTimeT(timestamp);
+        
+        Servers s = findServer(std::to_string(server_id));
+
+        std::cout << current_time - temp_time << std::endl;
+        std::cout << "current time: " << current_time  << std::endl;
+        std::cout << "server time: " << temp_time  << std::endl;
+
+
+        if(current_time-s.timestamp > 30){
+            s.isActive = false;
+        }
+
+
+
+        s = findServer(std::to_string(server_id));
             //should be s.portNum
         reply->set_port_number(s.portNum);
+        reply->set_server_type(s.serverType);
+        reply->set_server_id(std::to_string(server_id));
         //reply->set_port_number(find_portNumber(std::to_string(server_id), master_db));
 
 
@@ -136,6 +159,7 @@ class CoordinatorServiceImpl final : public CoordinatorService::Service {
             serverInstance.serverId = server_id;
             serverInstance.portNum = request->port_number();
             serverInstance.isActive = true;
+            serverInstance.serverType = "master";
             master_db.push_back(serverInstance);
           }
         }else if (request->server_type() == "slave") {
@@ -143,10 +167,23 @@ class CoordinatorServiceImpl final : public CoordinatorService::Service {
             serverInstance.serverId = server_id;
             serverInstance.portNum = request->port_number();
             serverInstance.isActive = true;
-            master_db.push_back(serverInstance);
+            serverInstance.serverType = "slave";
+
+            slave_db.push_back(serverInstance);
           }
+        }else if (request->server_type() == "syncer") {
+            if(followerSyncer_db.size() < 3){
+              serverInstance.serverId = server_id;
+              serverInstance.portNum = request->port_number();
+              serverInstance.isActive = true;
+              serverInstance.serverType = "syncer";
+
+              followerSyncer_db.push_back(serverInstance);
+            }
         }
           
+        print_db(followerSyncer_db);
+
         return Status::OK;
   
       }
@@ -156,18 +193,20 @@ class CoordinatorServiceImpl final : public CoordinatorService::Service {
         
         coord438::HeartBeat heartbeat;
         while(stream->Read(&heartbeat)) {
-          //if there is an absence of 2 heartbeats then coordinator deems Mi to fails and switches to slave
-          //std::this_thread::sleep_for(std::chrono::seconds(10));
-          std::cout << "Testing heartbeat functionality: " << heartbeat.server_id() << std::endl;
-          std::string time = google::protobuf::util::TimeUtil::ToString(heartbeat.timestamp());
-          Servers server = findServer(heartbeat.server_id());
-          server.timestamp = time;
-          std::cout << "Timestamp: " << time << std::endl;
-
           //if timestamp in server instance - current time is greate than 30, set master status to false ans switch to slave
+         
+          Servers server = findServer(heartbeat.server_id());
 
-          std::time_t times = google::protobuf::util::TimeUtil::TimestampToTimeT(heartbeat.timestamp());
-          displayTimestamp(times);
+
+          current_time = google::protobuf::util::TimeUtil::TimestampToTimeT(heartbeat.timestamp());
+          temp_time = current_time;
+
+          std::cout << "Testing heartbeat functionality: " << heartbeat.server_id() << std::endl;
+          std::cout << "blach: " << current_time << std::endl;
+          //std::cout << "lehrgey: " << server.timestamp << std::endl;
+
+          displayTimestamp(current_time);
+
         }
 
         return Status::OK;

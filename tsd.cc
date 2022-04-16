@@ -111,10 +111,41 @@ int find_user(std::string username){
   return -1;
 }
 
-void addClientToFile(std::string client_id, std::string file){
-  std::string filename = file;
-  std::ofstream user_file(filename, std::ios::app|std::ios::out|std::ios::in);
-  user_file<<client_id<<std::endl;
+void addClientToFile(std::string server_type, std::string server_id, std::string client_id, std::string filename){
+  std::string dirname = server_type +  "_" + server_id;
+  std::string fileinput = "/" + filename;
+  std::ofstream outputfile(dirname+fileinput, std::ios::app|std::ios::out|std::ios::in);
+  outputfile<<client_id<<std::endl;
+}
+
+void createDirectories(std::string server_type, std::string server_id){
+  int dir;
+  std::string dirname = server_type + "_" + server_id;
+  struct stat buffer;
+
+  if(stat(dirname.c_str(), &buffer) == 0){
+
+    std::string fileinput = "/all_clients.txt";
+    std::ofstream outputfile(dirname+fileinput);
+
+  } else{
+
+    dir = mkdir(dirname.c_str(),0777);
+    if(!dir){
+      std::cout << "Directory created" << std::endl;
+    }else{
+      std::cout << "Error creating directory" << std::endl;
+
+    }
+
+    std::string fileinput = "/all_clients.txt";
+    std::ofstream outputfile(dirname+fileinput);
+
+  }
+
+    
+
+  
 }
 
 void sendHeartbeat(const std::string &id) {
@@ -221,7 +252,8 @@ class SNSServiceImpl final : public SNSService::Service {
       //user2->client_followers.push_back(user1);
       reply->set_msg("Follow Successful");
 
-      addClientToFile(username1, username2 + "_followers.txt");
+      //addClientToFile(username1, username2 + "_followers.txt");
+
     }
     return Status::OK; 
   }
@@ -255,7 +287,7 @@ class SNSServiceImpl final : public SNSService::Service {
       c.username = username;
       client_db.push_back(c);
       reply->set_msg("Login Successful!");
-      addClientToFile(username, "all_clients.txt");
+      addClientToFile(serverType, id, username, "all_clients.txt");
     }
     else{ 
       Client *user = &client_db[user_index];
@@ -365,9 +397,12 @@ void RunServer(std::string port_no) {
 
   grpc::Status status = stubCoord_->populateRoutingTable(&context, request, &reply);
 
-  sendHeartbeat(id);
+  
 
   // make directory of Type and id storing all the context file
+  createDirectories(serverType, id);
+
+  sendHeartbeat(id);
   // std::string dirname = serverType+id;
   // int hello = mkdir(dirname.c_str(),0777);
 

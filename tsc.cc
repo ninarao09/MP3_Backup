@@ -148,8 +148,15 @@ int Client::connectTo()
  
 	if (ire.comm_status == SUCCESS && status.ok()) {
 	    //grpc::CreateChannel(login_info2, grpc::InsecureChannelCredentials());
-        std::string filename = id+"_followers.txt";
-        std::ofstream user_file(filename, std::ios::app|std::ios::out|std::ios::in);
+        //std::string filename = id+"_followers.txt";
+        //std::ofstream user_file(filename, std::ios::app|std::ios::out|std::ios::in);
+
+        std::string dirname = reply.server_type() + "_" + reply.server_id();
+        std::string fileinput = "/" + id + "_timelines.txt";
+        std::string fileinput2 = "/" + id + "_followers.txt";;
+
+        std::ofstream outputfile(dirname+fileinput);
+        std::ofstream outputfile2(dirname+fileinput2);
 	        
         return 1; // return 1 if success, otherwise return -1
             
