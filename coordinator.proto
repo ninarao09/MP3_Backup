@@ -38,6 +38,7 @@ service CoordinatorService{
 
     rpc Login (Request) returns (Reply) {}
     rpc populateRoutingTable (Request) returns (Reply) {}
+    rpc getAllClients (AllClientsRequest) returns (AllClientsReply) {}
     // Bidirectional Communication to check on server interaction
     rpc ServerCommunicate (stream HeartBeat) returns (stream HeartBeat) {}
  
@@ -80,4 +81,22 @@ message HeartBeat{
     string s_type = 2;
     //Time the message was sent
     google.protobuf.Timestamp timestamp = 3;
+}
+
+message AllClientsRequest{
+    // message with all clients in that cluster
+    string all_clients_request = 1;
+    // the id of the server
+    int32 server_id = 2;
+    // the type of server
+    string server_type = 3;
+}
+
+message AllClientsReply{
+    // message with all clients
+    string all_clients_reply = 1;
+    // the id of the server
+    int32 server_id = 2;
+    // the type of server
+    string server_type = 3;
 }

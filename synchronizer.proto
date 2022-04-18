@@ -36,8 +36,7 @@ import "google/protobuf/timestamp.proto";
 // The messenger service definition.
 service SynchronizerService{
 
-    // Bidirectional Communication to check on server interaction
-    rpc checkFollowerUpdates (stream HeartBeat) returns (stream HeartBeat) {}
+    rpc checkAllClientsFiles (Request) returns (Reply) {}
  
 }
 

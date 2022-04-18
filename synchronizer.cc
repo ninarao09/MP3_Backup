@@ -4,8 +4,11 @@
 #include <vector>
 #include <string>
 #include <unistd.h>
+#include <fstream>
 #include "database.h"
 #include <grpc++/grpc++.h>
+#include <sys/stat.h>
+
 
 
 #define MAX_ROOM 10
@@ -47,14 +50,73 @@ std::vector<std::string> followers;
 
 class SynchronizerServiceImpl final : public SynchronizerService::Service {
   
-      
-      Status checkFollowerUpdates(ServerContext* context, ServerReaderWriter<HeartBeat, HeartBeat>* stream) override {
+      //update all clients files for the cluster
+      Status checkAllClientsFiles(ServerContext* context, const Request* request, Reply* reply) override {
           
+
+
         return Status::OK;
 
       }
       
 };
+
+
+void checkForAllClientUpdates(std::string server_type, std::string server_id){
+
+  std::cout << "I AM HERE3 " << std::endl;
+
+  std::string dirname = server_type + "_" + server_id + "/all_clients.txt";
+  struct stat result;
+  if(stat(dirname.c_str(), &result)==0)
+  {
+      printf("old = %o", result.st_mtime);
+
+  }
+
+  while(1){
+    std::this_thread::sleep_for(std::chrono::seconds(5));
+    std::cout << "I AM HERE" << std::endl;
+
+    struct stat result2;
+    if(stat(dirname.c_str(), &result2)==0)
+    {
+      printf("old = %o\n", result.st_mtime);
+
+      printf("new = %o", result2.st_mtime);
+      //this works
+
+      if(result.st_mtime != result2.st_mtime){
+        std::cout << "The file was altered" << std::endl;
+        // an update was made to the all clients file
+          // contact coordinator for something
+          //grpc call to update the client files
+          grpc::ClientContext context;
+          coord438::AllClientsRequest request;
+          coord438::AllClientsReply reply;
+          std::string all_clients_in_cluster;
+
+          std::fstream newfile;
+          newfile.open(dirname,std::ios::in); //open a file to perform read operation using file object
+          if (newfile.is_open()){   //checking whether the file is open
+            std::string tp;
+            while(getline(newfile, tp)){ //read data from file object and put it into string.
+              all_clients_in_cluster.append(tp);
+            }
+          }
+          std::cout  << "All clients in cluster string: " << all_clients_in_cluster << std::endl;
+          request.set_all_clients_request(all_clients_in_cluster);
+          //request.set_all_clients_request("HELLO");
+          grpc::Status status = stubCoord_->getAllClients(&context, request, &reply);
+
+          std::cout << "reply from syncer" << reply.all_clients_reply() << std::endl;
+      }
+
+    }
+    
+  }
+
+}
 
 
 void RunServer(std::string port_no) {
@@ -83,6 +145,8 @@ void RunServer(std::string port_no) {
   request.set_server_type(serverType);
 
   grpc::Status status = stubCoord_->populateRoutingTable(&context, request, &reply);
+
+  checkForAllClientUpdates("master", syncer_id);
 
   server->Wait();
 }

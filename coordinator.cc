@@ -11,6 +11,8 @@
 
 #include "sns.grpc.pb.h"
 #include "coordinator.grpc.pb.h"
+#include "synchronizer.grpc.pb.h"
+
 
 
 #include <google/protobuf/timestamp.pb.h>
@@ -33,7 +35,8 @@ using coord438::Request;
 using coord438::Reply;
 using coord438::HeartBeat; 
 using coord438::RequesterType;
-
+using coord438::AllClientsRequest;
+using coord438::AllClientsReply;
 
 
 
@@ -56,6 +59,7 @@ number in each cluster. More implementation details are below.
 std::vector<Servers> master_db;
 std::vector<Servers> slave_db;
 std::vector<Servers> followerSyncer_db;
+std::vector<std::string> allClients_db;
 std::time_t temp_time;
 std::time_t current_time;
 
@@ -188,6 +192,18 @@ class CoordinatorServiceImpl final : public CoordinatorService::Service {
   
       }
 
+
+      Status getAllClients(ServerContext* context, const AllClientsRequest* request, AllClientsReply* reply) override {
+
+        std::cout << "Called From SYNCRONIZER: " << std::endl;
+
+        //std::cout << "From SYNCRONIZER: " << request->all_clients_request() << std::endl;
+        //push those values into all clients db
+
+        reply->set_all_clients_reply("pls work");
+        return Status::OK;
+      }
+
       Status ServerCommunicate(ServerContext* context, ServerReaderWriter<HeartBeat, HeartBeat>* stream) override {
         //Communicate with server to check if master is still alive
         
@@ -202,7 +218,7 @@ class CoordinatorServiceImpl final : public CoordinatorService::Service {
           temp_time = current_time;
 
           std::cout << "Testing heartbeat functionality: " << heartbeat.server_id() << std::endl;
-          std::cout << "blach: " << current_time << std::endl;
+          //std::cout << "blach: " << current_time << std::endl;
           //std::cout << "lehrgey: " << server.timestamp << std::endl;
 
           displayTimestamp(current_time);

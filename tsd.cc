@@ -36,8 +36,8 @@
 #include <google/protobuf/timestamp.pb.h>
 #include <google/protobuf/duration.pb.h>
 
-#include <fstream>
 #include <iostream>
+#include <fstream>
 #include <memory>
 #include <string>
 #include <stdlib.h>
@@ -126,7 +126,7 @@ void createDirectories(std::string server_type, std::string server_id){
   if(stat(dirname.c_str(), &buffer) == 0){
 
     std::string fileinput = "/all_clients.txt";
-    std::ofstream outputfile(dirname+fileinput);
+    std::ofstream outputfile(dirname+fileinput, std::ios::app|std::ios::out|std::ios::in);
 
   } else{
 
@@ -139,7 +139,7 @@ void createDirectories(std::string server_type, std::string server_id){
     }
 
     std::string fileinput = "/all_clients.txt";
-    std::ofstream outputfile(dirname+fileinput);
+    std::ofstream outputfile(dirname+fileinput, std::ios::app|std::ios::out|std::ios::in);
 
   }
 
