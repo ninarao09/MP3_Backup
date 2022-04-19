@@ -39,6 +39,7 @@ service CoordinatorService{
     rpc Login (Request) returns (Reply) {}
     rpc populateRoutingTable (Request) returns (Reply) {}
     rpc getAllClients (Request) returns (Reply) {}
+    rpc getServerId (Request) returns (Reply) {}
     // Bidirectional Communication to check on server interaction
     rpc ServerCommunicate (stream HeartBeat) returns (stream HeartBeat) {}
  

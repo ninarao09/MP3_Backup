@@ -1,3 +1,39 @@
+
+//**************************************************************************************************************************************************
+
+/*
+ *
+ * Copyright 2015, Google Inc.
+ * All rights reserved.
+ *
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions are
+ * met:
+ *
+ *     * Redistributions of source code must retain the above copyright
+ * notice, this list of conditions and the following disclaimer.
+ *     * Redistributions in binary form must reproduce the above
+ * copyright notice, this list of conditions and the following disclaimer
+ * in the documentation and/or other materials provided with the
+ * distribution.
+ *     * Neither the name of Google Inc. nor the names of its
+ * contributors may be used to endorse or promote products derived from
+ * this software without specific prior written permission.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+ * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+ * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
+ * A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
+ * OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+ * SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
+ * LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+ * DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+ * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+ * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+ * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ *
+ */
+
 #include <ctime>
 
 #include <google/protobuf/timestamp.pb.h>
@@ -16,53 +52,57 @@
 #include <chrono>
 #include "database.h"
 
-
 #include "synchronizer.grpc.pb.h"
 #include "coordinator.grpc.pb.h"
 
 
+using google::protobuf::Timestamp;
+using google::protobuf::Duration;
 using grpc::Server;
-
 using grpc::ServerBuilder;
 using grpc::ServerContext;
-using grpc::Status;
+using grpc::ServerReader;
 using grpc::ServerReaderWriter;
+using grpc::ServerWriter;
+using grpc::Status;
 
-using syncer438::SynchronizerService;
-using syncer438::Request;
-using syncer438::Reply;
-using syncer438::HeartBeat; 
-using syncer438::RequesterType;
-
-
-
+using sync438::Request;
+using sync438::Reply;
+using sync438::SynchronizerService;
 using coord438::CoordinatorService;
+
+using grpc::Channel;
+using grpc::ClientContext;
+using grpc::ClientReader;
+using grpc::ClientReaderWriter;
+using grpc::ClientWriter;
+
 
 
 std::string serverType = "syncer";
 std::string coordinatorIP = "localhost";
 std::string coordinatorPort = "3000";
-std::string syncer_id = "1";
-std::string syncerPort = "8080";
-std::unique_ptr<CoordinatorService::Stub> stubCoord2_;
-//std::unique_ptr<SynchronizerService::Stub> stubSyncer_;
-
-
-std::vector<std::string> all_clients;
-std::vector<std::string> followers;
+std::string id = "1";
+std::string clientPort = "8080";
+std::unique_ptr<CoordinatorService::Stub> stubCoord_;
 
 
 class SynchronizerServiceImpl final : public SynchronizerService::Service {
   
-      //update all clients files for the cluster
-      Status checkAllClientsFiles(ServerContext* context, const Request* request, Reply* reply) override {
-          
+  Status checkAllClientsFiles(ServerContext* context, const Request* request, Reply* list_reply) override {
+ 
 
-        std::cout << "ia m in syncer " << std::endl;
-        return Status::OK;
+    return Status::OK;
+  }
 
-      }
-      
+    Status checkAllFollowerFiles(ServerContext* context, const Request* request, Reply* list_reply) override {
+ 
+
+    return Status::OK;
+  }
+
+
+
 };
 
 
@@ -106,25 +146,31 @@ void checkForAllClientUpdates(std::string server_type, std::string server_id){
             std::string tp;
             while(getline(newfile, tp)){ //read data from file object and put it into string.
               all_clients_in_cluster.append(tp);
+              all_clients_in_cluster.append(".");
+
             }
           }
+          newfile.close();
           std::cout  << "All clients in cluster string: " << all_clients_in_cluster << std::endl;
           request.set_all_clients_request(all_clients_in_cluster);
-          //request.set_all_clients_request("HELLO");
           std::cout <<"req: " << request.all_clients_request() << std::endl;
-          Status status1 = stubCoord2_->getAllClients(&context, request, &reply);
+          grpc::Status status1 = stubCoord_->getAllClients(&context, request, &reply);
 
-          if(status1.ok()){
-              std::cout << "reply from syncer in if" << std::endl;
+          std::cout << "All clients reply: " << reply.all_clients_reply() << std::endl;
 
-          }
-          std::cout << "reply from syncer" << reply.all_clients_reply() << std::endl;
 
       }
 
     }
     
   }
+}
+
+void checkForFollowerUpdates(std::string server_type, std::string server_id){
+
+  //monitor every follower file in the cluster
+  //if there is a change in this cluster
+  //then update the other FS clusters of who is  following the person in the other cluster
 
 }
 
@@ -132,16 +178,17 @@ void checkForAllClientUpdates(std::string server_type, std::string server_id){
 void RunServer(std::string port_no) {
   std::string server_address = "0.0.0.0:"+port_no;
   SynchronizerServiceImpl service;
-//hello
+
   ServerBuilder builder;
   builder.AddListeningPort(server_address, grpc::InsecureServerCredentials());
   builder.RegisterService(&service);
   std::unique_ptr<Server> server(builder.BuildAndStart());
   std::cout << "Server listening on " << server_address << std::endl;
 
+  //here I should push into the master db or call the get server functon
+  std::string login_info = "localhost:" + coordinatorPort;
 
-  std::string login_info = coordinatorIP + ":" + coordinatorPort;
-  stubCoord2_ = std::unique_ptr<CoordinatorService::Stub>(CoordinatorService::NewStub(
+  stubCoord_ = std::unique_ptr<CoordinatorService::Stub>(CoordinatorService::NewStub(
                grpc::CreateChannel(
                     login_info, grpc::InsecureChannelCredentials())));
 
@@ -150,48 +197,55 @@ void RunServer(std::string port_no) {
   coord438::Reply reply;
     
   //takes id from command line and sends it to coordinator
-  request.set_id(stoi(syncer_id));
-  request.set_port_number(syncerPort);
+  request.set_id(stoi(id));
+  request.set_port_number(clientPort);
   request.set_server_type(serverType);
 
-  Status status = stubCoord2_->populateRoutingTable(&context, request, &reply);
+  grpc::Status status = stubCoord_->populateRoutingTable(&context, request, &reply);
 
   if(status.ok()){
-    std::cout << "fs table populated" << std::endl;
+    std::cout << "somehting is right" << std::endl;
+
+  }else {
+    std::cout << "somehting is wrong" << std::endl;
   }
 
-  checkForAllClientUpdates("master", syncer_id);
+  checkForAllClientUpdates("master", id);
+  //checkForAllClientUpdates("slave", id);
+
 
   server->Wait();
 }
 
 int main(int argc, char** argv) {
+  
 
-    std::string coordinatorIP = "localhost";
-    std::string coordinatorPort = "9000";
-    std::string syncerId = "1";
-    std::string syncerPort = "10000";
-    int opt = 0;
-    while ((opt = getopt(argc, argv, "i:c:p:d:")) != -1){
-        switch(opt) {
-            case 'i':
+  int opt = 0;
+  while ((opt = getopt(argc, argv, "i:c:p:d:t:")) != -1){
+    switch(opt) {
+      case 'i':
                 coordinatorIP = optarg;break;
-            case 'c':
+      case 'c':
                 coordinatorPort = optarg;break;
-            case 'p':
-                syncerPort = optarg;break;
-            case 'd':
-                syncerId = optarg;break;
-            default:
-                std::cerr << "Invalid Command Line Argument\n";
-        }
+      case 'p':
+                clientPort = optarg;break;
+      case 'd':
+                id = optarg;break;
+      default:
+	  std::cerr << "Invalid Command Line Argument\n";
     }
+  }
 
-    
-    RunServer(syncerPort);
-    
-    return 0;
+
+
+  RunServer(clientPort);
+
+  
+
+  return 0;
 }
+
+
 
 
 

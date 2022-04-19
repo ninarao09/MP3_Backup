@@ -6,6 +6,9 @@
 #include <unistd.h>
 #include <chrono>
 #include <time.h>
+#include <sstream>
+#include <fstream>
+
 #include "database.h"
 #include <grpc++/grpc++.h>
 
@@ -59,6 +62,8 @@ std::vector<Servers> master_db;
 std::vector<Servers> slave_db;
 std::vector<Servers> followerSyncer_db;
 std::vector<std::string> allClients_db;
+std::vector<std::string> all_clients_in_cluster_db;
+
 std::time_t temp_time;
 std::time_t current_time;
 std::time_t old_time;
@@ -99,15 +104,15 @@ Servers findServer(std::string server_id){
 
     if(current_time - master_db[0].timestamp > 20){
       std::cout << "Server was down for more than 20" << std::endl;
-      master_db[0].isActive = false;
+      master_db[stoi(server_id)-1].isActive = false;
     }
   
-  if(master_db[0].isActive == true){
-    master_db[0].serverType = "master";
-    return master_db[0];
-  } else if(master_db[0].isActive == false){
-    slave_db[0].serverType = "slave";
-    return slave_db[0];
+  if(master_db[stoi(server_id)-1].isActive == true){
+    master_db[stoi(server_id)-1].serverType = "master";
+    return master_db[stoi(server_id)-1];
+  } else if(master_db[stoi(server_id)-1].isActive == false){
+    slave_db[stoi(server_id)-1].serverType = "slave";
+    return slave_db[stoi(server_id)-1];
   }
 
 }
@@ -125,11 +130,6 @@ Servers* findServer2(std::string server_id){
 
 }
 
-// Servers getMasterOrSlave(bool status){
-//     if(status == true){
-
-//     }
-// }
 
 int findServerIndex(std::string server_id, std::string server_type){
   std::vector<Servers> db;
@@ -157,6 +157,45 @@ class CoordinatorServiceImpl final : public CoordinatorService::Service {
         // first take client and assign is to a cluster (Xi) using mod3 formula
         // client assigned cluster is server id
         int server_id = (request->id() % 3) + 1;
+
+        //push clients who were already created by reading all clients file in every cluster
+        
+      
+        for(int i=0; i<3; ++i){
+          std::string dirname;
+          if(i == 0){
+              dirname = "master_1/all_clients.txt";
+          }else if(i == 1){
+              dirname = "master_2/all_clients.txt";
+          }else if(i == 2){
+              dirname = "master_3/all_clients.txt";
+          }
+
+          int checker = 0;
+          std::fstream newfile;
+          newfile.open(dirname,std::ios::in|std::ios::out); //open a file to perform read operation using file object
+          if (newfile.is_open()){   //checking whether the file is open
+            std::string tp;
+            while(getline(newfile, tp)){ //read data from file object and put it into string.
+              for(int j=0; j<allClients_db.size(); ++j){
+                if(allClients_db[j] == tp){
+                  checker = 1;
+                }
+              }
+              if(checker == 0){
+                  allClients_db.push_back(tp);
+
+              }
+              
+            }
+          }
+          newfile.close();
+
+        }
+
+
+        //push the new clients
+        allClients_db.push_back(std::to_string(request->id()));
 
         //std::string server_type = request->server_type();
         // Servers* server = findServer2(std::to_string(server_id));
@@ -241,13 +280,15 @@ class CoordinatorServiceImpl final : public CoordinatorService::Service {
               serverInstance.portNum = request->port_number();
               serverInstance.isActive = true;
               serverInstance.serverType = "syncer";
-              //serverInstance.timestamp = current_time;
+              serverInstance.timestamp = current_time;
               followerSyncer_db.push_back(serverInstance);
             }
         }
           
         //print_db(master_db);
         //print_db(slave_db);
+        print_db(followerSyncer_db);
+
 
 
         return Status::OK;
@@ -257,14 +298,100 @@ class CoordinatorServiceImpl final : public CoordinatorService::Service {
 
       Status getAllClients(ServerContext* context, const Request* request, Reply* reply) override {
 
-        std::cout << "Called From SYNCRONIZER: " << std::endl;
 
-        //std::cout << "From SYNCRONIZER: " << request->all_clients_request() << std::endl;
+        std::cout << "From SYNCRONIZER: " << request->all_clients_request() << std::endl;
+
+        // std::string  tester = request->all_clients_request();
+
+        // std::stringstream clients(tester);
+        // std::string segment;
+
+        // //put all values from synchronizer in temp db
+        // while(std::getline(clients, segment, '.'))
+        // {
+        //   all_clients_in_cluster_db.push_back(segment);
+        // }
+
+        //check if values in temp db are in all_clients_db
+        // int checker = 0;
+        // for(int i=0; i<all_clients_in_cluster_db.size(); ++i){
+        //     for(int j=0; j<allClients_db.size(); ++j){
+        //       if(all_clients_in_cluster_db[i] == allClients_db[j]){
+        //         checker = 1;
+        //       }
+        //   }
+        //   if(checker == 0){
+        //     allClients_db.push_back(all_clients_in_cluster_db[i]);
+        //   }
+        // }
+
+        
+        std::string all_clients;
+        
         //push those values into all clients db
+        for(std::string s : allClients_db){
+          all_clients.append(s);
+          all_clients.append(".");
 
-        //reply->set_all_clients_reply("pls work");
+          std::cout << "STRING FROM All Clients DB" << s << std::endl;
+        }
+
+        for(std::string s : all_clients_in_cluster_db){
+          std::cout << "STRING FROM All Clients cluster" << s << std::endl;
+        }
+
+        if(allClients_db.size()==0){
+          reply->set_all_clients_reply("no users");
+          return Status::OK;
+        }
+
+
+        reply->set_all_clients_reply(all_clients);
         return Status::OK;
       }
+
+      Status getServerId(ServerContext* context, const Request* request, Reply* reply) override {
+        //here I need to find the cluster id write to the proper file for the follow request
+
+        std::string user_to_add = std::to_string(request->id());
+        int server_id;
+
+        for(int i=0; i<3; ++i){
+          std::string dirname;
+          if(i == 0){
+              dirname = "master_1/all_clients.txt";
+              server_id = 1;
+          }else if(i == 1){
+              dirname = "master_2/all_clients.txt";
+              server_id = 2;
+
+          }else if(i == 2){
+              dirname = "master_3/all_clients.txt";
+              server_id = 3;
+
+          }
+
+          int checker = 0;
+          std::fstream newfile;
+          newfile.open(dirname,std::ios::in|std::ios::out); //open a file to perform read operation using file object
+          if (newfile.is_open()){   //checking whether the file is open
+            std::string tp;
+            while(getline(newfile, tp)){ //read data from file object and put it into string.
+                if(user_to_add == tp){
+                  //set cluster id to 
+                  reply->set_server_id(std::to_string(server_id));
+                  return Status::OK;
+                }
+            }
+          }
+          newfile.close();
+
+        }
+
+        return Status::OK;
+      }
+
+
 
       Status ServerCommunicate(ServerContext* context, ServerReaderWriter<HeartBeat, HeartBeat>* stream) override {
         //Communicate with server to check if master is still alive

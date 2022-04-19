@@ -38,6 +38,8 @@
 
 #include <iostream>
 #include <fstream>
+#include <sstream>
+
 #include <memory>
 #include <string>
 #include <stdlib.h>
@@ -161,7 +163,6 @@ void sendHeartbeat(const std::string &id) {
             m.set_server_id(id);
             m.set_s_type(serverType);
 
-            //google::protobuf::Timestamp timestamp = google::protobuf::util::TimeUtil::GetCurrentTime();
             
 
             google::protobuf::Timestamp* timestamp = new google::protobuf::Timestamp();
@@ -183,17 +184,7 @@ void sendHeartbeat(const std::string &id) {
             stream->WritesDone();
             });
 
-    // std::thread reader([id, stream]() {
-    //         HeartBeat m;
-    //           while(stream->Read(&m)){
-    //             google::protobuf::Timestamp temptime = m.timestamp();
-    //             std::time_t time = temptime.seconds();
-    //           }
-    //         });
-
-    //Wait for the threads to finish
     writer.join();
-    //reader.join();
 }
 
 
@@ -205,24 +196,14 @@ class SNSServiceImpl final : public SNSService::Service {
     Client user = client_db[find_user(request->username())];
     int index = 0;
 
-    std::fstream newfile;
-    newfile.open("all_clients.txt",std::ios::in|std::ios::out); //open a file to perform read operation using file object
-    if (newfile.is_open()){   //checking whether the file is open
-      std::string tp;
-      while(getline(newfile, tp)){ //read data from file object and put it into string.
-        list_reply->add_all_users(tp);
-      }
-    }
+    std::string tester = request->arguments(0);
+    std::stringstream clients(tester);
+    std::string segment;
 
-    std::cout << "I am in the list function server side - after listing all clients" << std::endl;
-
-    std::fstream newfile2;
-    newfile2.open(request->username()+"_followers.txt",std::ios::in); //open a file to perform read operation using file object
-    if (newfile2.is_open()){   //checking whether the file is open
-      std::string tp;
-      while(getline(newfile2, tp)){ //read data from file object and put it into string.
-        list_reply->add_followers(tp);
-      }
+        //put all values from sysegmenthronizer in temp db
+    while(std::getline(clients, segment, '.'))
+    {
+      list_reply->add_all_users(segment);
     }
 
     // std::vector<Client*>::const_iterator it;
@@ -250,9 +231,20 @@ class SNSServiceImpl final : public SNSService::Service {
       // }
       //user1->client_following.push_back(user2);
       //user2->client_followers.push_back(user1);
+
+      //contact the coordinator to receive the cluster id of the person I'm trying to follow and wrtie to got
+      // ClientContext context2;
+      // coord438::Request request2;
+      // coord438::Reply reply2;
+      // request2.set_id(stoi(username1));
+
+      // Status status = stubCoord_->getServerId(&context2, request2, &reply2);
+
       reply->set_msg("Follow Successful");
 
-      //addClientToFile(username1, username2 + "_followers.txt");
+      addClientToFile("master", id,  username2, username1 + "_following.txt");
+      //addClientToFile("slave", id, username1, username2 + "_followers.txt");
+
 
     }
     return Status::OK; 
@@ -288,7 +280,7 @@ class SNSServiceImpl final : public SNSService::Service {
       c.username = username;
       client_db.push_back(c);
       reply->set_msg("Login Successful!");
-      addClientToFile(serverType, id, username, "all_clients.txt");
+      addClientToFile("master", id, username, "all_clients.txt");
     }
     else{ 
       Client *user = &client_db[user_index];
@@ -398,12 +390,16 @@ void RunServer(std::string port_no) {
 
   grpc::Status status = stubCoord_->populateRoutingTable(&context, request, &reply);
 
-  
-
   // make directory of Type and id storing all the context file
   createDirectories(serverType, id);
 
   sendHeartbeat(id);
+
+  //here I do stuff if server type is slave
+  //contact coordinator to recieve all of the master info
+  //so I should receive the appropriate info to fill the files in the slave cluster
+  //a function here should run continuously
+
   // std::string dirname = serverType+id;
   // int hello = mkdir(dirname.c_str(),0777);
 

@@ -150,13 +150,15 @@ int Client::connectTo()
 	    //grpc::CreateChannel(login_info2, grpc::InsecureChannelCredentials());
         //std::string filename = id+"_followers.txt";
         //std::ofstream user_file(filename, std::ios::app|std::ios::out|std::ios::in);
+        // here I should populate the all_clients db
 
+        
         std::string dirname = reply.server_type() + "_" + reply.server_id();
-        std::string fileinput = "/" + id + "_timelines.txt";
-        std::string fileinput2 = "/" + id + "_followers.txt";;
-
-        std::ofstream outputfile(dirname+fileinput, std::ios::in|std::ios::out);
-        std::ofstream outputfile2(dirname+fileinput2, std::ios::in|std::ios::out);
+        std::string fileinput = "/" + id + "_timeline.txt";
+        std::string fileinput2 = "/" + id + "_following.txt";;
+        std::cout << dirname+fileinput << std::endl;
+        std::ofstream outputfile(dirname+fileinput, std::ios::app|std::ios::out|std::ios::in);
+        std::ofstream outputfile2(dirname+fileinput2, std::ios::app|std::ios::out|std::ios::in);
 	        
         return 1; // return 1 if success, otherwise return -1
             
@@ -275,7 +277,16 @@ IReply Client::List() {
     ListReply list_reply;
 
     //Context for the client
+    ClientContext context2;
+    coord438::Request request2;
+    coord438::Reply reply2;
+
+    Status statusCoord = stubCoord_->getAllClients(&context2, request2, &reply2);
+
     ClientContext context;
+
+    
+    request.add_arguments(reply2.all_clients_reply());
 
     //std::cout << "before calling stub" <<std::endl;
     Status status = stub_->List(&context, request, &list_reply);

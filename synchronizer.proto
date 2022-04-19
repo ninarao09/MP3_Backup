@@ -29,7 +29,7 @@
 
 syntax = "proto3";
 
-package syncer438;
+package sync438;
 
 import "google/protobuf/timestamp.proto";
 
@@ -37,7 +37,7 @@ import "google/protobuf/timestamp.proto";
 service SynchronizerService{
 
     rpc checkAllClientsFiles (Request) returns (Reply) {}
- 
+    rpc checkAllFollowerFiles (Request) returns (Reply) {}
 }
 
 enum ServerType{
@@ -53,14 +53,12 @@ enum RequesterType{
 }
 
 message Request{
-    // type of requester
-    RequesterType requester = 1;
     // message with their port number
-    string port_number = 2;
+    string port_number = 1;
     // the id of the request
-    int32 id = 3;
+    int32 id = 2;
     // the type of server
-    ServerType server_type = 4;
+    ServerType server_type = 3;
 }
 
 message Reply{
