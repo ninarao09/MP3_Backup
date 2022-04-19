@@ -206,7 +206,7 @@ class SNSServiceImpl final : public SNSService::Service {
     int index = 0;
 
     std::fstream newfile;
-    newfile.open("all_clients.txt",std::ios::in); //open a file to perform read operation using file object
+    newfile.open("all_clients.txt",std::ios::in|std::ios::out); //open a file to perform read operation using file object
     if (newfile.is_open()){   //checking whether the file is open
       std::string tp;
       while(getline(newfile, tp)){ //read data from file object and put it into string.
@@ -270,7 +270,8 @@ class SNSServiceImpl final : public SNSService::Service {
 
     //check if user was created already
     std::fstream newfile;
-    newfile.open("all_clients.txt",std::ios::in); //open a file to perform read operation using file object
+    std::string dirname = serverType + "_" + id + "/all_clients.txt";
+    newfile.open(dirname,std::ios::in|std::ios::out); //open a file to perform read operation using file object
     if (newfile.is_open()){   //checking whether the file is open
       std::string tp;
       while(getline(newfile, tp)){ //read data from file object and put it into string.

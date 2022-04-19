@@ -142,7 +142,7 @@ int Client::connectTo()
                     login_info2, grpc::InsecureChannelCredentials())));
 
 
-    std::cout << "Connected to MASTER server at " << "localhost:" << reply.port_number() << std::endl;
+    std::cout << "Connected to " + reply.server_type() + " server at " << "localhost:" << reply.port_number() << std::endl;
     
     IReply ire = Login();
  
@@ -155,8 +155,8 @@ int Client::connectTo()
         std::string fileinput = "/" + id + "_timelines.txt";
         std::string fileinput2 = "/" + id + "_followers.txt";;
 
-        std::ofstream outputfile(dirname+fileinput);
-        std::ofstream outputfile2(dirname+fileinput2);
+        std::ofstream outputfile(dirname+fileinput, std::ios::in|std::ios::out);
+        std::ofstream outputfile2(dirname+fileinput2, std::ios::in|std::ios::out);
 	        
         return 1; // return 1 if success, otherwise return -1
             

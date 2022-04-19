@@ -1,22 +1,24 @@
+#include <ctime>
+
+#include <google/protobuf/timestamp.pb.h>
+#include <google/protobuf/duration.pb.h>
+
 #include <iostream>
-#include <memory>
-#include <thread>
-#include <vector>
-#include <string>
-#include <unistd.h>
 #include <fstream>
-#include "database.h"
-#include <grpc++/grpc++.h>
+#include <memory>
+#include <string>
+#include <stdlib.h>
 #include <sys/stat.h>
+#include <thread>
+#include <unistd.h>
+#include <google/protobuf/util/time_util.h>
+#include <grpc++/grpc++.h>
+#include <chrono>
+#include "database.h"
 
 
-
-#define MAX_ROOM 10
-
-#include "coordinator.grpc.pb.h"
-#include "sns.grpc.pb.h"
 #include "synchronizer.grpc.pb.h"
-
+#include "coordinator.grpc.pb.h"
 
 
 using grpc::Server;
@@ -26,10 +28,6 @@ using grpc::ServerContext;
 using grpc::Status;
 using grpc::ServerReaderWriter;
 
-
-using csce438::Message;
-using coord438::CoordinatorService;
-
 using syncer438::SynchronizerService;
 using syncer438::Request;
 using syncer438::Reply;
@@ -37,12 +35,18 @@ using syncer438::HeartBeat;
 using syncer438::RequesterType;
 
 
+
+using coord438::CoordinatorService;
+
+
 std::string serverType = "syncer";
 std::string coordinatorIP = "localhost";
 std::string coordinatorPort = "3000";
 std::string syncer_id = "1";
 std::string syncerPort = "8080";
-std::unique_ptr<CoordinatorService::Stub> stubCoord_;
+std::unique_ptr<CoordinatorService::Stub> stubCoord2_;
+//std::unique_ptr<SynchronizerService::Stub> stubSyncer_;
+
 
 std::vector<std::string> all_clients;
 std::vector<std::string> followers;
@@ -54,7 +58,7 @@ class SynchronizerServiceImpl final : public SynchronizerService::Service {
       Status checkAllClientsFiles(ServerContext* context, const Request* request, Reply* reply) override {
           
 
-
+        std::cout << "ia m in syncer " << std::endl;
         return Status::OK;
 
       }
@@ -70,7 +74,7 @@ void checkForAllClientUpdates(std::string server_type, std::string server_id){
   struct stat result;
   if(stat(dirname.c_str(), &result)==0)
   {
-      printf("old = %o", result.st_mtime);
+      printf("old = %lo", result.st_mtime);
 
   }
 
@@ -81,9 +85,9 @@ void checkForAllClientUpdates(std::string server_type, std::string server_id){
     struct stat result2;
     if(stat(dirname.c_str(), &result2)==0)
     {
-      printf("old = %o\n", result.st_mtime);
+      printf("old = %lo\n", result.st_mtime);
 
-      printf("new = %o", result2.st_mtime);
+      printf("new = %lo", result2.st_mtime);
       //this works
 
       if(result.st_mtime != result2.st_mtime){
@@ -92,12 +96,12 @@ void checkForAllClientUpdates(std::string server_type, std::string server_id){
           // contact coordinator for something
           //grpc call to update the client files
           grpc::ClientContext context;
-          coord438::AllClientsRequest request;
-          coord438::AllClientsReply reply;
+          coord438::Request request;
+          coord438::Reply reply;
           std::string all_clients_in_cluster;
 
           std::fstream newfile;
-          newfile.open(dirname,std::ios::in); //open a file to perform read operation using file object
+          newfile.open(dirname,std::ios::in|std::ios::out); //open a file to perform read operation using file object
           if (newfile.is_open()){   //checking whether the file is open
             std::string tp;
             while(getline(newfile, tp)){ //read data from file object and put it into string.
@@ -107,9 +111,15 @@ void checkForAllClientUpdates(std::string server_type, std::string server_id){
           std::cout  << "All clients in cluster string: " << all_clients_in_cluster << std::endl;
           request.set_all_clients_request(all_clients_in_cluster);
           //request.set_all_clients_request("HELLO");
-          grpc::Status status = stubCoord_->getAllClients(&context, request, &reply);
+          std::cout <<"req: " << request.all_clients_request() << std::endl;
+          Status status1 = stubCoord2_->getAllClients(&context, request, &reply);
 
+          if(status1.ok()){
+              std::cout << "reply from syncer in if" << std::endl;
+
+          }
           std::cout << "reply from syncer" << reply.all_clients_reply() << std::endl;
+
       }
 
     }
@@ -131,7 +141,7 @@ void RunServer(std::string port_no) {
 
 
   std::string login_info = coordinatorIP + ":" + coordinatorPort;
-  stubCoord_ = std::unique_ptr<CoordinatorService::Stub>(CoordinatorService::NewStub(
+  stubCoord2_ = std::unique_ptr<CoordinatorService::Stub>(CoordinatorService::NewStub(
                grpc::CreateChannel(
                     login_info, grpc::InsecureChannelCredentials())));
 
@@ -144,7 +154,11 @@ void RunServer(std::string port_no) {
   request.set_port_number(syncerPort);
   request.set_server_type(serverType);
 
-  grpc::Status status = stubCoord_->populateRoutingTable(&context, request, &reply);
+  Status status = stubCoord2_->populateRoutingTable(&context, request, &reply);
+
+  if(status.ok()){
+    std::cout << "fs table populated" << std::endl;
+  }
 
   checkForAllClientUpdates("master", syncer_id);
 
@@ -154,7 +168,7 @@ void RunServer(std::string port_no) {
 int main(int argc, char** argv) {
 
     std::string coordinatorIP = "localhost";
-    std::string coordinatorPort = "3000";
+    std::string coordinatorPort = "9000";
     std::string syncerId = "1";
     std::string syncerPort = "10000";
     int opt = 0;

@@ -12,7 +12,7 @@
 struct Servers{
   int serverId;
   std::string portNum;
-  bool isActive = false;
+  bool isActive = true;
   time_t timestamp;
   std::string serverType;
 };
