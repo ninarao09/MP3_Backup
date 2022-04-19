@@ -91,13 +91,23 @@ void displayTimestamp(std::time_t& time){
 }
 
 Servers findServer(std::string server_id){
+
+    google::protobuf::Timestamp timestamp = google::protobuf::Timestamp();
+    timestamp.set_seconds(time(NULL));
+    timestamp.set_nanos(0);
+        current_time = google::protobuf::util::TimeUtil::TimestampToTimeT(timestamp);
+
+    if(current_time - master_db[0].timestamp > 20){
+      std::cout << "Server was down for more than 20" << std::endl;
+      master_db[0].isActive = false;
+    }
   
-  if(master_db[stoi(server_id)-1].isActive = true){
-    master_db[stoi(server_id)-1].serverType = "master";
-    return master_db[stoi(server_id)-1];
-  } else if(master_db[stoi(server_id)-1].isActive = false){
-    slave_db[stoi(server_id)-1].serverType = "slave";
-    return slave_db[stoi(server_id)-1];
+  if(master_db[0].isActive == true){
+    master_db[0].serverType = "master";
+    return master_db[0];
+  } else if(master_db[0].isActive == false){
+    slave_db[0].serverType = "slave";
+    return slave_db[0];
   }
 
 }
@@ -149,25 +159,25 @@ class CoordinatorServiceImpl final : public CoordinatorService::Service {
         int server_id = (request->id() % 3) + 1;
 
         //std::string server_type = request->server_type();
-        Servers* server = findServer2(std::to_string(server_id));
-        //Servers* s = &server;
-          std::cout << "server type returned is - before: " << server->serverType << std::endl;
-          std::cout << "server port returned is - before: " << server->portNum << std::endl;
-          std::cout << "server id returned is - before: " << server->serverId << std::endl;
+        // Servers* server = findServer2(std::to_string(server_id));
+        // //Servers* s = &server;
+        //   std::cout << "server type returned is - before: " << server->serverType << std::endl;
+        //   std::cout << "server port returned is - before: " << server->portNum << std::endl;
+        //   std::cout << "server id returned is - before: " << server->serverId << std::endl;
+        //   std::cout << "server status returned is - before: " << server->isActive << std::endl;
 
-        google::protobuf::Timestamp timestamp = google::protobuf::Timestamp();
-        timestamp.set_seconds(time(NULL));
-        timestamp.set_nanos(0);
-        current_time = google::protobuf::util::TimeUtil::TimestampToTimeT(timestamp);
-        // std::cout << "server timestamp in login : " << s.timestamp << std::endl;
-        // std::cout << "current timestamp in login : " << current_time << std::endl;
 
+        // google::protobuf::Timestamp timestamp = google::protobuf::Timestamp();
+        // timestamp.set_seconds(time(NULL));
+        // timestamp.set_nanos(0);
+        // current_time = google::protobuf::util::TimeUtil::TimestampToTimeT(timestamp);
 
           //if time change is greater than 2 missing heartbeats
-        if(current_time - server->timestamp > 20){
-            std::cout << "Server was down for more than 20" << std::endl;
-            server->isActive = false;
-        }
+        // if(current_time - server->timestamp > 20){
+        //     std::cout << "Server was down for more than 20" << std::endl;
+        //     server->isActive = false;
+        //     //it is not actually setting to false
+        // }
 
             //server->isActive = false;
 
@@ -180,13 +190,13 @@ class CoordinatorServiceImpl final : public CoordinatorService::Service {
           std::cout << "server type returned is: " << s.serverType << std::endl;
           std::cout << "server port returned is: " << s.portNum << std::endl;
           std::cout << "server id returned is: " << s.serverId << std::endl;
-          std::cout << "server status returned is: " << server->isActive << std::endl;
+          std::cout << "server status returned is: " << s.isActive << std::endl;
 
 
 
             //should be s.portNum
-        reply->set_port_number(server->portNum);
-        reply->set_server_type(server->serverType);
+        reply->set_port_number(s.portNum);
+        reply->set_server_type(s.serverType);
         reply->set_server_id(std::to_string(server_id));
         //reply->set_port_number(find_portNumber(std::to_string(server_id), master_db));
 
