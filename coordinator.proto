@@ -39,7 +39,8 @@ service CoordinatorService{
     rpc Login (Request) returns (Reply) {}
     rpc populateRoutingTable (Request) returns (Reply) {}
     rpc getAllClients (Request) returns (Reply) {}
-    rpc getServerId (Request) returns (Reply) {}
+    rpc getMasterInfoForSlave (SlaveRequest) returns (SlaveReply) {}
+    rpc getFSServerInfo (Request) returns (FSReply) {}
     // Bidirectional Communication to check on server interaction
     rpc ServerCommunicate (stream HeartBeat) returns (stream HeartBeat) {}
  
@@ -87,3 +88,20 @@ message HeartBeat{
     google.protobuf.Timestamp timestamp = 3;
 }
 
+message SlaveRequest{
+    // id of the sever
+    string server_id = 1;
+
+}
+
+message SlaveReply{
+    string all_clients_for_cluster = 1;
+    string followers = 2;
+}
+
+message FSReply{
+    string port_number_1 = 1;
+    int32 id_1 = 2;
+    string port_number_2 = 3;
+    int32 id_2 = 4;
+}

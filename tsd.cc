@@ -362,6 +362,8 @@ class SNSServiceImpl final : public SNSService::Service {
 
 };
 
+
+
 void RunServer(std::string port_no) {
   std::string server_address = "0.0.0.0:"+port_no;
   SNSServiceImpl service;
@@ -390,18 +392,47 @@ void RunServer(std::string port_no) {
 
   grpc::Status status = stubCoord_->populateRoutingTable(&context, request, &reply);
 
+  std::cout << "serverTpe1"  <<  serverType << std::endl;
+
+
   // make directory of Type and id storing all the context file
   createDirectories(serverType, id);
-
-  sendHeartbeat(id);
 
   //here I do stuff if server type is slave
   //contact coordinator to recieve all of the master info
   //so I should receive the appropriate info to fill the files in the slave cluster
-  //a function here should run continuously
+  //a function here should run continuously to update the slave based on the master
 
-  // std::string dirname = serverType+id;
-  // int hello = mkdir(dirname.c_str(),0777);
+  //if servertype is slave and paring master is not active ** I also 
+
+
+
+  if(serverType=="slave"){
+    std::cout << "hello" <<std::endl;
+
+    // while(1){
+    //   grpc::ClientContext context;
+    //   coord438::SlaveRequest request;
+    //   coord438::SlaveReply reply;
+        
+    //   //takes id from command line and sends it to coordinator
+    //   request.set_server_id(id);
+    //   grpc::Status status = stubCoord_->getMasterInfoForSlave(&context, request, &reply);
+
+    //   if(status.ok()){
+    //     std::cout << "status is ok "<< std::endl;
+    //   }
+
+    //   std::cout << "hello" <<std::endl;
+    // }
+  }
+
+  
+  std::cout << "serverTpe2"  <<  serverType << std::endl;
+
+  sendHeartbeat(id);
+
+
 
   server->Wait();
 }

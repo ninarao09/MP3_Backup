@@ -30,6 +30,8 @@ using grpc::ServerBuilder;
 using grpc::ServerContext;
 using grpc::Status;
 using grpc::ServerReaderWriter;
+using grpc::ServerReader;
+using grpc::ServerWriter;
 
 
 using csce438::Message;
@@ -37,8 +39,9 @@ using coord438::CoordinatorService;
 using coord438::Request;
 using coord438::Reply;
 using coord438::HeartBeat; 
-using coord438::RequesterType;
-
+using coord438::SlaveRequest;
+using coord438::SlaveReply;
+using coord438::FSReply;
 
 
 
@@ -118,15 +121,13 @@ Servers findServer(std::string server_id){
 }
 
 
-Servers* findServer2(std::string server_id){
+std::string findFSPortNum(std::string server_id){
   
-  if(master_db[stoi(server_id)-1].isActive = true){
-    master_db[stoi(server_id)-1].serverType = "master";
-    return &master_db[stoi(server_id)-1];
-  } else if(master_db[stoi(server_id)-1].isActive = false){
-    slave_db[stoi(server_id)-1].serverType = "slave";
-    return &slave_db[stoi(server_id)-1];
-  }
+    for(Servers s : followerSyncer_db){
+      if(s.serverId == stoi(server_id)){
+        return s.portNum;
+      }
+    }
 
 }
 
@@ -350,48 +351,56 @@ class CoordinatorServiceImpl final : public CoordinatorService::Service {
         return Status::OK;
       }
 
-      Status getServerId(ServerContext* context, const Request* request, Reply* reply) override {
+      Status getMasterInfoForSlave(ServerContext* context, const SlaveRequest* request, SlaveReply* reply) override {
+        //here I need to find the cluster id write to the proper file for the follow request
+        std::cout << "SlaveRequest id: " << request->server_id()<< std::endl;
+
+
+
+        return Status::OK;
+      }
+
+      Status getFSServerInfo(ServerContext* context, const Request* request, FSReply* reply) override {
         //here I need to find the cluster id write to the proper file for the follow request
 
-        std::string user_to_add = std::to_string(request->id());
-        int server_id;
+        std::cout << "inget server info  - id: " << request->id() << std::endl;
+        std::cout << "inget server info - port: " << request->port_number() << std::endl;
 
-        for(int i=0; i<3; ++i){
-          std::string dirname;
-          if(i == 0){
-              dirname = "master_1/all_clients.txt";
-              server_id = 1;
-          }else if(i == 1){
-              dirname = "master_2/all_clients.txt";
-              server_id = 2;
+        std::string port_num ;
 
-          }else if(i == 2){
-              dirname = "master_3/all_clients.txt";
-              server_id = 3;
+        if(request->id()==1){
 
-          }
+          reply->set_id_1(2);
+          port_num = findFSPortNum("2");
+          reply->set_port_number_1(port_num);
 
-          int checker = 0;
-          std::fstream newfile;
-          newfile.open(dirname,std::ios::in|std::ios::out); //open a file to perform read operation using file object
-          if (newfile.is_open()){   //checking whether the file is open
-            std::string tp;
-            while(getline(newfile, tp)){ //read data from file object and put it into string.
-                if(user_to_add == tp){
-                  //set cluster id to 
-                  reply->set_server_id(std::to_string(server_id));
-                  return Status::OK;
-                }
-            }
-          }
-          newfile.close();
+          reply->set_id_2(3);
+          port_num = findFSPortNum("3");
+          reply->set_port_number_2(port_num);
+
+        }else if(request->id()==2){
+
+          reply->set_id_1(1);
+          port_num = findFSPortNum("1");
+          reply->set_port_number_1(port_num);
+
+          reply->set_id_2(3);
+          port_num = findFSPortNum("3");
+          reply->set_port_number_2(port_num);
+
+        }else if(request->id()==3){
+          reply->set_id_1(1);
+          port_num = findFSPortNum("1");
+          reply->set_port_number_1(port_num);
+
+          reply->set_id_2(2);
+          port_num = findFSPortNum("2");
+          reply->set_port_number_2(port_num);
 
         }
 
         return Status::OK;
       }
-
-
 
       Status ServerCommunicate(ServerContext* context, ServerReaderWriter<HeartBeat, HeartBeat>* stream) override {
         //Communicate with server to check if master is still alive
@@ -444,6 +453,7 @@ class CoordinatorServiceImpl final : public CoordinatorService::Service {
 };
 
 
+
 void RunServer(std::string port_no) {
   std::string server_address = "0.0.0.0:"+port_no;
   CoordinatorServiceImpl service;
@@ -453,6 +463,11 @@ void RunServer(std::string port_no) {
   builder.RegisterService(&service);
   std::unique_ptr<Server> server(builder.BuildAndStart());
   std::cout << "Server listening on " << server_address << std::endl;
+
+  // when the fs table is size 3
+  //tell the syncer to that so it can run the
+
+
 
   server->Wait();
 }

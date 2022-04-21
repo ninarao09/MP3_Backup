@@ -68,6 +68,7 @@ using grpc::Status;
 
 using sync438::Request;
 using sync438::Reply;
+using sync438::HeartBeat;
 using sync438::SynchronizerService;
 using coord438::CoordinatorService;
 
@@ -85,6 +86,10 @@ std::string coordinatorPort = "3000";
 std::string id = "1";
 std::string clientPort = "8080";
 std::unique_ptr<CoordinatorService::Stub> stubCoord_;
+std::unique_ptr<SynchronizerService::Stub> stubFS1_;
+std::unique_ptr<SynchronizerService::Stub> stubFS2_;
+
+long int old_time;
 
 
 class SynchronizerServiceImpl final : public SynchronizerService::Service {
@@ -101,7 +106,9 @@ class SynchronizerServiceImpl final : public SynchronizerService::Service {
     return Status::OK;
   }
 
-
+   Status coordinatorCommunicate(ServerContext* context, ServerReaderWriter<HeartBeat, HeartBeat>* stream) override {
+      return Status::OK;
+   }
 
 };
 
@@ -115,7 +122,7 @@ void checkForAllClientUpdates(std::string server_type, std::string server_id){
   if(stat(dirname.c_str(), &result)==0)
   {
       printf("old = %lo", result.st_mtime);
-
+      old_time = result.st_mtime;
   }
 
   while(1){
@@ -130,7 +137,7 @@ void checkForAllClientUpdates(std::string server_type, std::string server_id){
       printf("new = %lo", result2.st_mtime);
       //this works
 
-      if(result.st_mtime != result2.st_mtime){
+      if(old_time != result2.st_mtime){
         std::cout << "The file was altered" << std::endl;
         // an update was made to the all clients file
           // contact coordinator for something
@@ -151,14 +158,32 @@ void checkForAllClientUpdates(std::string server_type, std::string server_id){
             }
           }
           newfile.close();
+
+          //get all clients in that exist - send the new user to the database
           std::cout  << "All clients in cluster string: " << all_clients_in_cluster << std::endl;
           request.set_all_clients_request(all_clients_in_cluster);
           std::cout <<"req: " << request.all_clients_request() << std::endl;
           grpc::Status status1 = stubCoord_->getAllClients(&context, request, &reply);
-
           std::cout << "All clients reply: " << reply.all_clients_reply() << std::endl;
 
+          //contact coordinator to recieve other fs ports.
+            grpc::ClientContext context2;
+            coord438::Request request2;
+            coord438::FSReply reply2;
+            request2.set_id(stoi(id));
+            request2.set_port_number(clientPort);
+            request2.set_server_type(serverType);
+            grpc::Status status2 = stubCoord_->getFSServerInfo(&context2, request2, &reply2);
 
+            std::cout << "other id 1 " << reply2.id_1() << std::endl;
+            std::cout << "other port 1 " << reply2.port_number_1() << std::endl;
+            std::cout << "other id 2 " << reply2.id_2() << std::endl;
+            std::cout << "other port 2 " << reply2.port_number_2() << std::endl;
+
+            //create syncer stubs to do stub thing
+
+
+          old_time = result2.st_mtime;
       }
 
     }
@@ -203,15 +228,31 @@ void RunServer(std::string port_no) {
 
   grpc::Status status = stubCoord_->populateRoutingTable(&context, request, &reply);
 
-  if(status.ok()){
-    std::cout << "somehting is right" << std::endl;
 
-  }else {
-    std::cout << "somehting is wrong" << std::endl;
-  }
+  //get other fs info only if fs table is populated completely 
+  // grpc::ClientContext context2;
+  // coord438::Request request2;
+  // coord438::FSReply reply2;
+  // request2.set_id(stoi(id));
+  // request2.set_port_number(clientPort);
+  // request2.set_server_type(serverType);
+  // grpc::Status status2 = stubCoord_->getFSServerInfo(&context2, request2, &reply2);
+
+  // std::cout << "other id 1 " << reply2.id_1() << std::endl;
+  // std::cout << "other port 1 " << reply2.port_number_1() << std::endl;
+  // std::cout << "other id 2 " << reply2.id_2() << std::endl;
+  // std::cout << "other port 2 " << reply2.port_number_2() << std::endl;
+
+
+
+  // if(status.ok()){
+  //   std::cout << "somehting is right" << std::endl;
+
+  // }else {
+  //   std::cout << "somehting is wrong" << std::endl;
+  // }
 
   checkForAllClientUpdates("master", id);
-  //checkForAllClientUpdates("slave", id);
 
 
   server->Wait();
