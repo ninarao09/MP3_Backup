@@ -86,6 +86,10 @@ std::string coordinatorPort = "3000";
 std::string id = "1";
 std::string clientPort = "8080";
 std::unique_ptr<CoordinatorService::Stub> stubCoord_;
+std::unique_ptr<SNSService::Stub> stubSlave_;
+
+
+bool isMaster = false;
 
 struct Client {
   std::string username;
@@ -232,6 +236,14 @@ class SNSServiceImpl final : public SNSService::Service {
   Status Follow(ServerContext* context, const Request* request, Reply* reply) override {
     std::string username1 = request->username();
     std::string username2 = request->arguments(0);
+
+    std::string s_type;
+    if(isMaster==true){
+        s_type = "master";
+    }else{
+        s_type = "slave";
+    }
+
     int join_index = find_user(username2);
     if(username1 == username2)
       reply->set_msg("unkown user name");
@@ -255,8 +267,21 @@ class SNSServiceImpl final : public SNSService::Service {
 
       reply->set_msg("Follow Successful");
 
-      addClientToFile("master", id,  username2, username1 + "_following.txt");
+      addClientToFile(s_type, id,  username2, username1 + "_following.txt");
       //addClientToFile("slave", id, username1, username2 + "_followers.txt");
+      if(isMaster==true){
+        Request request2;
+        ClientContext context2;
+        Reply reply2;
+
+
+        request2.set_username(request->username());
+        request2.add_arguments(request->arguments(0));
+
+        //std::string slave_port = fi
+        Status status2 = stubSlave_->Follow(&context2, request2, &reply2);
+
+      }
 
 
     }
@@ -273,9 +298,17 @@ class SNSServiceImpl final : public SNSService::Service {
     Client c;
     std::string username = request->username();
 
+    std::string s_type;
+
+    if(isMaster==true){
+        s_type = "master";
+    }else{
+        s_type = "slave";
+    }
+
     //check if user was created already
     std::fstream newfile;
-    std::string dirname = serverType + "_" + id + "/all_clients.txt";
+    std::string dirname = s_type + "_" + id + "/all_clients.txt";
     newfile.open(dirname,std::ios::in|std::ios::out); //open a file to perform read operation using file object
     if (newfile.is_open()){   //checking whether the file is open
       std::string tp;
@@ -293,10 +326,10 @@ class SNSServiceImpl final : public SNSService::Service {
       c.username = username;
       client_db.push_back(c);
       reply->set_msg("Login Successful!");
-      addClientToFile("master", id, username, "all_clients.txt");
-      addClientToFile("master", id, username, "total_clients.txt");
+      addClientToFile(s_type, id, username, "all_clients.txt");
+      addClientToFile(s_type, id, username, "total_clients.txt");
 
-      std::string dirname2 = serverType + "_" + id;
+      std::string dirname2 = s_type + "_" + id;
       std::string fileinput = "/" + username + "_timeline.txt";
       std::string fileinput2 = "/" + username + "_following.txt";
       std::string fileinput3 = "/" +  username + "_followers.txt";
@@ -313,6 +346,19 @@ class SNSServiceImpl final : public SNSService::Service {
 	      reply->set_msg(msg);
         user->connected = true;
       }
+    }
+
+    if(isMaster==true){
+      Request request2;
+      ClientContext context2;
+      Reply reply2;
+
+      request2.set_username(username);
+      request2.set_server_type("slave");
+
+      //std::string slave_port = fi
+      Status status2 = stubSlave_->Login(&context2, request2, &reply2);
+
     }
 
     
@@ -387,6 +433,27 @@ class SNSServiceImpl final : public SNSService::Service {
 
 };
 
+void getSlaveInfo(std::string server_id){
+  //call frunction from coordinator to get slave port
+
+  ClientContext context;
+  coord438::Request request;
+  coord438::Reply reply;
+
+  request.set_id(stoi(server_id));
+  Status status = stubCoord_->getSlaveInfo(&context, request, &reply);
+  std::cout << "SLAVE PORT :::: " << reply.slave_port() << std::endl;
+
+  std::string login_info = "localhost:" + reply.slave_port();
+
+  stubSlave_ = std::unique_ptr<SNSService::Stub>(SNSService::NewStub(
+                grpc::CreateChannel(
+                      login_info, grpc::InsecureChannelCredentials())));
+
+
+}
+
+
 
 
 void RunServer(std::string port_no) {
@@ -400,63 +467,33 @@ void RunServer(std::string port_no) {
   std::cout << "Server listening on " << server_address << std::endl;
 
   //here I should push into the master db or call the get server functon
-  std::string login_info = "localhost:" + coordinatorPort;
 
-  stubCoord_ = std::unique_ptr<CoordinatorService::Stub>(CoordinatorService::NewStub(
-               grpc::CreateChannel(
-                    login_info, grpc::InsecureChannelCredentials())));
+    grpc::ClientContext context;
+    coord438::Request request;
+    coord438::Reply reply;
+      
+    //takes id from command line and sends it to coordinator
+    request.set_id(stoi(id));
+    request.set_port_number(clientPort);
+    request.set_server_type(serverType);
 
-  grpc::ClientContext context;
-  coord438::Request request;
-  coord438::Reply reply;
-    
-  //takes id from command line and sends it to coordinator
-  request.set_id(stoi(id));
-  request.set_port_number(clientPort);
-  request.set_server_type(serverType);
-
-  grpc::Status status = stubCoord_->populateRoutingTable(&context, request, &reply);
+    grpc::Status status = stubCoord_->populateRoutingTable(&context, request, &reply);
 
   //here I should populate total_clients db
 
   // make directory of Type and id storing all the context file
+  
   createDirectories(serverType, id);
+  if(serverType == "master"){
+    isMaster = true;
 
-  //here I do stuff if server type is slave
-  //contact coordinator to recieve all of the master info
-  //so I should receive the appropriate info to fill the files in the slave cluster
-  //a function here should run continuously to update the slave based on the master
+    //call coordinator to get slave stub
 
-  //if servertype is slave and paring master is not active ** I also 
-
-
-
-  if(serverType=="slave"){
-    std::cout << "hello" <<std::endl;
-
-    // while(1){
-    //   grpc::ClientContext context;
-    //   coord438::SlaveRequest request;
-    //   coord438::SlaveReply reply;
-        
-    //   //takes id from command line and sends it to coordinator
-    //   request.set_server_id(id);
-    //   grpc::Status status = stubCoord_->getMasterInfoForSlave(&context, request, &reply);
-
-    //   if(status.ok()){
-    //     std::cout << "status is ok "<< std::endl;
-    //   }
-
-    //   std::cout << "hello" <<std::endl;
-    // }
+    getSlaveInfo(id);
+    
   }
 
-  
-  std::cout << "serverTpe2"  <<  serverType << std::endl;
-
   sendHeartbeat(id);
-
-
 
   server->Wait();
 }
@@ -481,6 +518,18 @@ int main(int argc, char** argv) {
 	  std::cerr << "Invalid Command Line Argument\n";
     }
   }
+
+  std::string login_info = "localhost:" + coordinatorPort;
+
+    stubCoord_ = std::unique_ptr<CoordinatorService::Stub>(CoordinatorService::NewStub(
+                grpc::CreateChannel(
+                      login_info, grpc::InsecureChannelCredentials())));
+
+  
+    //find the slave port based off of the server ID
+    //create a slave stub for the respective master
+
+
 
 
 

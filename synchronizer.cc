@@ -130,6 +130,11 @@ class SynchronizerServiceImpl final : public SynchronizerService::Service {
       std::ofstream outputfile(dirname+fileinput, std::ios::app|std::ios::out|std::ios::in);
       outputfile<<request->client_in_file()<<std::endl;
 
+      std::string dirname2 = "slave_" + std::to_string(server_id);
+      std::string fileinput2 = "/" + request->client() + "_followers.txt";
+      std::ofstream outputfile2(dirname2+fileinput2, std::ios::app|std::ios::out|std::ios::in);
+      outputfile2<<request->client_in_file()<<std::endl;
+
     return Status::OK;
   }
 
@@ -161,6 +166,26 @@ class SynchronizerServiceImpl final : public SynchronizerService::Service {
       std::string fileinput = "/total_clients.txt";
       std::ofstream outputfile(dirname+fileinput, std::ios::app|std::ios::out|std::ios::in);
       outputfile<<request->client_in_file()<<std::endl;
+
+      //do it for te slave as well
+      std::fstream newfile2;
+      std::string dirname2 = "slave_" + std::to_string(request->server_id());
+      newfile2.open(dirname2 + "/total_clients.txt",std::ios::in|std::ios::out); //open a file to perform read operation using file object
+      if (newfile2.is_open()){   //checking whether the file is open
+        std::string tp;
+        while(getline(newfile2, tp)){ //read data from file object and put it into string.
+            if(request->client_in_file()==tp){
+              newfile2.close();
+              return Status::OK;
+            }
+        }
+       }
+       newfile2.close();
+
+      
+      std::string fileinput2 = "/total_clients.txt";
+      std::ofstream outputfile2(dirname2+fileinput2, std::ios::app|std::ios::out|std::ios::in);
+      outputfile2<<request->client_in_file()<<std::endl;
 
     return Status::OK;
   }

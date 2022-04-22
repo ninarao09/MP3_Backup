@@ -117,10 +117,10 @@ Servers findServer(std::string server_id){
     timestamp.set_nanos(0);
         current_time = google::protobuf::util::TimeUtil::TimestampToTimeT(timestamp);
 
-    if(current_time - master_db[0].timestamp > 20){
+  if(current_time - master_db[0].timestamp > 20){
       std::cout << "Server was down for more than 20" << std::endl;
       master_db[stoi(server_id)-1].isActive = false;
-    }
+  }
   
   if(master_db[stoi(server_id)-1].isActive == true){
     master_db[stoi(server_id)-1].serverType = "master";
@@ -136,6 +136,16 @@ Servers findServer(std::string server_id){
 std::string findFSPortNum(std::string server_id){
   
     for(Servers s : followerSyncer_db){
+      if(s.serverId == stoi(server_id)){
+        return s.portNum;
+      }
+    }
+
+}
+
+std::string findSlavePortNum(std::string server_id){
+  
+    for(Servers s : slave_db){
       if(s.serverId == stoi(server_id)){
         return s.portNum;
       }
@@ -171,7 +181,7 @@ class CoordinatorServiceImpl final : public CoordinatorService::Service {
         // client assigned cluster is server id
         int server_id = (request->id() % 3) + 1;
 
- 
+        //std::string slave_port = findSlavePortNum(std::to_string(server_id));
 
         Servers s = findServer(std::to_string(server_id));
 
@@ -181,6 +191,8 @@ class CoordinatorServiceImpl final : public CoordinatorService::Service {
         std::cout << "server port returned is: " << s.portNum << std::endl;
         std::cout << "server id returned is: " << s.serverId << std::endl;
         std::cout << "server status returned is: " << s.isActive << std::endl;
+        //std::cout << "slave port returned is: " << slave_port << std::endl;
+
 
 
 
@@ -188,6 +200,7 @@ class CoordinatorServiceImpl final : public CoordinatorService::Service {
         reply->set_port_number(s.portNum);
         reply->set_server_type(s.serverType);
         reply->set_server_id(std::to_string(server_id));
+        //reply->set_slave_port(slave_port);
         //reply->set_port_number(find_portNumber(std::to_string(server_id), master_db));
 
 
@@ -277,10 +290,12 @@ class CoordinatorServiceImpl final : public CoordinatorService::Service {
         return Status::OK;
       }
 
-      Status getMasterInfoForSlave(ServerContext* context, const SlaveRequest* request, SlaveReply* reply) override {
+      Status getSlaveInfo(ServerContext* context, const Request* request, Reply* reply) override {
         //here I need to find the cluster id write to the proper file for the follow request
-        std::cout << "SlaveRequest id: " << request->server_id()<< std::endl;
+        std::cout << "SlaveRequest id: " << request->id()<< std::endl;
 
+        std::string slave_port = findSlavePortNum(std::to_string(request->id()));
+        reply->set_slave_port(slave_port);
 
 
         return Status::OK;

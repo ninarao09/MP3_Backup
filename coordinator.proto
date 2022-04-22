@@ -39,7 +39,7 @@ service CoordinatorService{
     rpc Login (Request) returns (Reply) {}
     rpc populateRoutingTable (Request) returns (Reply) {}
     rpc getAllClients (Request) returns (Reply) {}
-    rpc getMasterInfoForSlave (SlaveRequest) returns (SlaveReply) {}
+    rpc getSlaveInfo (Request) returns (Reply) {}
     rpc getFSServerInfo (Request) returns (FSReply) {}
     // Bidirectional Communication to check on server interaction
     rpc ServerCommunicate (stream HeartBeat) returns (stream HeartBeat) {}
@@ -77,6 +77,7 @@ message Reply{
     string server_type = 3;
     string server_id = 4;
     string all_clients_reply = 5;
+    string slave_port = 6;
 }
 
 message HeartBeat{

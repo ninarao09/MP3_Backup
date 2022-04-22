@@ -53,6 +53,7 @@ message Request {
   string username = 1;
   repeated string arguments = 2;
   int32 client_id = 3;
+  string server_type = 4;
 }
 
 message Reply {
