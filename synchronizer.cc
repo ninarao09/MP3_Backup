@@ -118,10 +118,35 @@ class SynchronizerServiceImpl final : public SynchronizerService::Service {
   Status sendFollowerInfo(ServerContext* context, const FollowerRequest* request, Reply* reply) override {
 
       //update follower file in the respective cluster
-        std::cout << "in the API call" <<std::endl;
+      //I need the server Id
 
+      int server_id = stoi(request->client())%3+1;
 
+      //write to the follower file
+      std::cout << "in the API call" <<std::endl;
 
+      std::string dirname = "master_" + std::to_string(server_id);
+      std::string fileinput = "/" + request->client() + "_followers.txt";
+      std::ofstream outputfile(dirname+fileinput, std::ios::app|std::ios::out|std::ios::in);
+      outputfile<<request->client_in_file()<<std::endl;
+
+    return Status::OK;
+  }
+
+  Status sendAllClientsInfo(ServerContext* context, const FollowerRequest* request, Reply* reply) override {
+
+      //update follower file in the respective cluster
+      //I need the server Id
+
+      int server_id = stoi(request->client_in_file())%3+1;
+
+      //write to the follower file
+      std::cout << "in the API call2" <<std::endl;
+
+      std::string dirname = "master_" + std::to_string(server_id);
+      std::string fileinput = "/total_clients.txt";
+      std::ofstream outputfile(dirname+fileinput, std::ios::app|std::ios::out|std::ios::in);
+      outputfile<<request->client_in_file()<<std::endl;
 
     return Status::OK;
   }
@@ -155,7 +180,7 @@ void ifTheFileWasAllClients(std::string server_id){
           std::string all_clients_in_cluster;
 
           std::fstream newfile;
-          newfile.open(dirname,std::ios::in|std::ios::out); //open a file to perform read operation using file object
+          newfile.open(dirname,std::ios::app|std::ios::in|std::ios::out); //open a file to perform read operation using file object
           if (newfile.is_open()){   //checking whether the file is open
             std::string tp;
             while(getline(newfile, tp)){ //read data from file object and put it into string.
@@ -305,7 +330,7 @@ void checkForUpdates(std::string server_type, std::string server_id){
 
 
           //std::cout << "index: " << index << std::endl;
-          std::cout << "filname: " << ent->d_name << std::endl;
+          //std::cout << "filname: " << ent->d_name << std::endl;
 
           
 
@@ -334,6 +359,40 @@ void checkForUpdates(std::string server_type, std::string server_id){
                   if(strcmp(ent->d_name, "all_clients.txt")==0){
                     std::cout << "I am iin the all clients if" << std::endl;
                     ifTheFileWasAllClients(server_id);
+
+                    std::string clientToAdd;
+                    std::fstream newfile;
+                    newfile.open(dirname + "/total_clients.txt",std::ios::in|std::ios::out); //open a file to perform read operation using file object
+                    if (newfile.is_open()){   //checking whether the file is open
+                      std::string tp;
+                      while(getline(newfile, tp)){ //read data from file object and put it into string.
+                        clientToAdd = tp;
+                      }
+                    }
+                    newfile.close();
+
+                    ClientContext context;
+                    ClientContext context2;
+
+                    FollowerRequest request;
+                    Reply reply;
+
+                    FollowerRequest request2;
+                    Reply reply2; 
+                    Status status;
+                    Status status2;
+
+
+                    request.set_client_in_file(clientToAdd);
+                    request2.set_client_in_file(clientToAdd);
+
+
+                    
+                    status = stubFS1_->sendAllClientsInfo(&context, request, &reply);
+
+                    status2 = stubFS2_->sendAllClientsInfo(&context2, request2, &reply2);
+                    
+
                   }
 
                   //call the stub function so it can  contact the other FS to update of its follower info
@@ -360,12 +419,12 @@ void checkForUpdates(std::string server_type, std::string server_id){
                         std::cout << s.stubName << std::endl;
                         stub_name = s.stubName;
                         
-                      }else if(cluster_to_get==2){
+                      }else if(cluster_to_get==2 && s.serverId==2){
                         port_number = s.portNum;
                         std::cout << s.stubName << std::endl;
                         stub_name = s.stubName;
 
-                      }else if(cluster_to_get==3){
+                      }else if(cluster_to_get==3 && s.serverId==3){
                         port_number = s.portNum;
                         std::cout << s.stubName << std::endl;
                         stub_name = s.stubName;

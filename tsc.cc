@@ -270,16 +270,16 @@ IReply Client::List() {
     ListReply list_reply;
 
     //Context for the client
-    ClientContext context2;
-    coord438::Request request2;
-    coord438::Reply reply2;
+    // ClientContext context2;
+    // coord438::Request request2;
+    // coord438::Reply reply2;
 
-    Status statusCoord = stubCoord_->getAllClients(&context2, request2, &reply2);
+    // Status statusCoord = stubCoord_->getAllClients(&context2, request2, &reply2);
 
     ClientContext context;
 
     
-    request.add_arguments(reply2.all_clients_reply());
+    //request.add_arguments(reply2.all_clients_reply());
 
     //std::cout << "before calling stub" <<std::endl;
     Status status = stub_->List(&context, request, &list_reply);

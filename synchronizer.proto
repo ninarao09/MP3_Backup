@@ -37,6 +37,7 @@ import "google/protobuf/timestamp.proto";
 service SynchronizerService{
 
     rpc sendFollowerInfo (FollowerRequest) returns (Reply) {}
+    rpc sendAllClientsInfo (FollowerRequest) returns (Reply) {}
     rpc coordinatorCommunicate (stream HeartBeat) returns (stream HeartBeat) {}
 
 }

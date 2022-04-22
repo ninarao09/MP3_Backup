@@ -159,78 +159,16 @@ class CoordinatorServiceImpl final : public CoordinatorService::Service {
         // client assigned cluster is server id
         int server_id = (request->id() % 3) + 1;
 
-        //push clients who were already created by reading all clients file in every cluster
-        
-      
-        for(int i=0; i<3; ++i){
-          std::string dirname;
-          if(i == 0){
-              dirname = "master_1/all_clients.txt";
-          }else if(i == 1){
-              dirname = "master_2/all_clients.txt";
-          }else if(i == 2){
-              dirname = "master_3/all_clients.txt";
-          }
+ 
 
-          int checker = 0;
-          std::fstream newfile;
-          newfile.open(dirname,std::ios::in|std::ios::out); //open a file to perform read operation using file object
-          if (newfile.is_open()){   //checking whether the file is open
-            std::string tp;
-            while(getline(newfile, tp)){ //read data from file object and put it into string.
-              for(int j=0; j<allClients_db.size(); ++j){
-                if(allClients_db[j] == tp){
-                  checker = 1;
-                }
-              }
-              if(checker == 0){
-                  allClients_db.push_back(tp);
-
-              }
-              
-            }
-          }
-          newfile.close();
-
-        }
-
-
-        //push the new clients
-        allClients_db.push_back(std::to_string(request->id()));
-
-        //std::string server_type = request->server_type();
-        // Servers* server = findServer2(std::to_string(server_id));
-        // //Servers* s = &server;
-        //   std::cout << "server type returned is - before: " << server->serverType << std::endl;
-        //   std::cout << "server port returned is - before: " << server->portNum << std::endl;
-        //   std::cout << "server id returned is - before: " << server->serverId << std::endl;
-        //   std::cout << "server status returned is - before: " << server->isActive << std::endl;
-
-
-        // google::protobuf::Timestamp timestamp = google::protobuf::Timestamp();
-        // timestamp.set_seconds(time(NULL));
-        // timestamp.set_nanos(0);
-        // current_time = google::protobuf::util::TimeUtil::TimestampToTimeT(timestamp);
-
-          //if time change is greater than 2 missing heartbeats
-        // if(current_time - server->timestamp > 20){
-        //     std::cout << "Server was down for more than 20" << std::endl;
-        //     server->isActive = false;
-        //     //it is not actually setting to false
-        // }
-
-            //server->isActive = false;
-
-        //Set the server type
         Servers s = findServer(std::to_string(server_id));
 
 
 
-
-          std::cout << "server type returned is: " << s.serverType << std::endl;
-          std::cout << "server port returned is: " << s.portNum << std::endl;
-          std::cout << "server id returned is: " << s.serverId << std::endl;
-          std::cout << "server status returned is: " << s.isActive << std::endl;
+        std::cout << "server type returned is: " << s.serverType << std::endl;
+        std::cout << "server port returned is: " << s.portNum << std::endl;
+        std::cout << "server id returned is: " << s.serverId << std::endl;
+        std::cout << "server status returned is: " << s.isActive << std::endl;
 
 
 
@@ -310,10 +248,6 @@ class CoordinatorServiceImpl final : public CoordinatorService::Service {
           all_clients.append(".");
 
           std::cout << "STRING FROM All Clients DB" << s << std::endl;
-        }
-
-        for(std::string s : all_clients_in_cluster_db){
-          std::cout << "STRING FROM All Clients cluster" << s << std::endl;
         }
 
         if(allClients_db.size()==0){

@@ -129,6 +129,8 @@ void createDirectories(std::string server_type, std::string server_id){
 
     std::string fileinput = "/all_clients.txt";
     std::ofstream outputfile(dirname+fileinput, std::ios::app|std::ios::out|std::ios::in);
+    std::string fileinput2 = "/total_clients.txt";
+    std::ofstream outputfile2(dirname+fileinput2, std::ios::app|std::ios::out|std::ios::in);
 
   } else{
 
@@ -142,7 +144,9 @@ void createDirectories(std::string server_type, std::string server_id){
 
     std::string fileinput = "/all_clients.txt";
     std::ofstream outputfile(dirname+fileinput, std::ios::app|std::ios::out|std::ios::in);
-
+    
+    std::string fileinput2 = "/total_clients.txt";
+    std::ofstream outputfile2(dirname+fileinput2, std::ios::app|std::ios::out|std::ios::in);
   }
 
     
@@ -196,19 +200,21 @@ class SNSServiceImpl final : public SNSService::Service {
     Client user = client_db[find_user(request->username())];
     int index = 0;
 
-    std::string tester = request->arguments(0);
-    std::stringstream clients(tester);
-    std::string segment;
-
-        //put all values from sysegmenthronizer in temp db
-    while(std::getline(clients, segment, '.'))
-    {
-      list_reply->add_all_users(segment);
+    std::fstream newfile2;
+    std::string dirname2 = "master_" + id + "/total_clients.txt"; 
+    newfile2.open(dirname2,std::ios::in|std::ios::out); //open a file to perform read operation using file object
+    if (newfile2.is_open()){   //checking whether the file is open
+      std::string tp;
+      while(getline(newfile2, tp)){ //read data from file object and put it into string.
+        list_reply->add_all_users(tp);
+      }
     }
+    newfile2.close();
 
-    std::string server_id = std::to_string((stoi(id)%3)+1);
+    //std::string server_id = std::to_string((stoi(id)%3)+1);
     std::fstream newfile;
-    std::string dirname = "master_" + server_id + "/" + id + "_followers.txt"; 
+    std::string dirname = "master_" + id + "/" + request->username() + "_followers.txt"; 
+    std::cout << "client int list: " <<request->username() << std::endl;
     newfile.open(dirname,std::ios::in|std::ios::out); //open a file to perform read operation using file object
     if (newfile.is_open()){   //checking whether the file is open
       std::string tp;
@@ -287,6 +293,7 @@ class SNSServiceImpl final : public SNSService::Service {
       client_db.push_back(c);
       reply->set_msg("Login Successful!");
       addClientToFile("master", id, username, "all_clients.txt");
+      addClientToFile("master", id, username, "total_clients.txt");
 
       std::string dirname2 = serverType + "_" + id;
       std::string fileinput = "/" + username + "_timeline.txt";
