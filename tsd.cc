@@ -416,8 +416,7 @@ void RunServer(std::string port_no) {
 
   grpc::Status status = stubCoord_->populateRoutingTable(&context, request, &reply);
 
-  std::cout << "serverTpe1"  <<  serverType << std::endl;
-
+  //here I should populate total_clients db
 
   // make directory of Type and id storing all the context file
   createDirectories(serverType, id);

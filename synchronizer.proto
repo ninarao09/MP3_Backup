@@ -72,7 +72,7 @@ message FollowerRequest{
     string client = 1;
     string client_in_file = 2;
     repeated int32 user_id = 3;
-    repeated int32 server_id = 4;
+    int32 server_id = 4;
 
 }
 

@@ -143,7 +143,7 @@ class SynchronizerServiceImpl final : public SynchronizerService::Service {
       //write to the follower file
       std::cout << "in the API call2" <<std::endl;
 
-      std::string dirname = "master_" + std::to_string(server_id);
+      std::string dirname = "master_" + std::to_string(request->server_id());
       std::string fileinput = "/total_clients.txt";
       std::ofstream outputfile(dirname+fileinput, std::ios::app|std::ios::out|std::ios::in);
       outputfile<<request->client_in_file()<<std::endl;
@@ -386,7 +386,22 @@ void checkForUpdates(std::string server_type, std::string server_id){
                     request.set_client_in_file(clientToAdd);
                     request2.set_client_in_file(clientToAdd);
 
+                    int sid;
+                    int sid2;
 
+
+                    for(Servers s : followerSyncer_db){
+                        if(s.stubName == "stubFS1_"){
+                            sid = s.serverId;
+                        }if(s.stubName == "stubFS2_"){
+                            sid2 = s.serverId;
+                        }
+                    }
+
+                    request.set_server_id(sid);
+                    request2.set_server_id(sid2);
+
+                    //finde server ids for stubs and sett them
                     
                     status = stubFS1_->sendAllClientsInfo(&context, request, &reply);
 
