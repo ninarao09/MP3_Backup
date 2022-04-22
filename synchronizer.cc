@@ -45,11 +45,13 @@
 #include <string>
 #include <stdlib.h>
 #include <sys/stat.h>
+#include <experimental/filesystem>
 #include <thread>
 #include <unistd.h>
 #include <google/protobuf/util/time_util.h>
 #include <grpc++/grpc++.h>
 #include <chrono>
+#include "dirent.h"
 #include "database.h"
 
 #include "synchronizer.grpc.pb.h"
@@ -69,6 +71,7 @@ using grpc::Status;
 using sync438::Request;
 using sync438::Reply;
 using sync438::HeartBeat;
+using sync438::FollowerRequest;
 using sync438::SynchronizerService;
 using coord438::CoordinatorService;
 
@@ -91,17 +94,33 @@ std::unique_ptr<SynchronizerService::Stub> stubFS2_;
 
 long int old_time;
 
+struct otherSyncers{
+  std::string server_id_1;
+  std::string port_num_1;
+  std::string server_id_2;
+  std::string port_num_2;
+};
+
+otherSyncers syncer;
+
+struct oldFileTimes{
+  std::string filename;
+  long int old_time;
+};
+
+std::vector<oldFileTimes> old_file_times;
+
 
 class SynchronizerServiceImpl final : public SynchronizerService::Service {
-  
-  Status checkAllClientsFiles(ServerContext* context, const Request* request, Reply* list_reply) override {
- 
 
-    return Status::OK;
-  }
 
-    Status checkAllFollowerFiles(ServerContext* context, const Request* request, Reply* list_reply) override {
- 
+  Status sendFollowerInfo(ServerContext* context, const FollowerRequest* request, Reply* reply) override {
+
+      //update follower file in the respective cluster
+
+
+
+
 
     return Status::OK;
   }
@@ -113,37 +132,24 @@ class SynchronizerServiceImpl final : public SynchronizerService::Service {
 };
 
 
-void checkForAllClientUpdates(std::string server_type, std::string server_id){
 
-  std::cout << "I AM HERE3 " << std::endl;
-
-  std::string dirname = server_type + "_" + server_id + "/all_clients.txt";
-  struct stat result;
-  if(stat(dirname.c_str(), &result)==0)
-  {
-      printf("old = %lo", result.st_mtime);
-      old_time = result.st_mtime;
+int findOldTimeIndex(std::string filename){
+  int index=0;
+  for(oldFileTimes o : old_file_times){
+    if(o.filename == filename){
+      return index;
+    }
+    index++;
   }
+  return -1;
+}
 
-  while(1){
-    std::this_thread::sleep_for(std::chrono::seconds(5));
-    std::cout << "I AM HERE" << std::endl;
+void ifTheFileWasAllClients(std::string server_id){
 
-    struct stat result2;
-    if(stat(dirname.c_str(), &result2)==0)
-    {
-      printf("old = %lo\n", result.st_mtime);
+  std::string dirname = "master_" + server_id + "/all_clients.txt";
 
-      printf("new = %lo", result2.st_mtime);
-      //this works
-
-      if(old_time != result2.st_mtime){
-        std::cout << "The file was altered" << std::endl;
-        // an update was made to the all clients file
-          // contact coordinator for something
-          //grpc call to update the client files
-          grpc::ClientContext context;
-          coord438::Request request;
+  grpc::ClientContext context;
+  coord438::Request request;
           coord438::Reply reply;
           std::string all_clients_in_cluster;
 
@@ -166,36 +172,169 @@ void checkForAllClientUpdates(std::string server_type, std::string server_id){
           grpc::Status status1 = stubCoord_->getAllClients(&context, request, &reply);
           std::cout << "All clients reply: " << reply.all_clients_reply() << std::endl;
 
+
           //contact coordinator to recieve other fs ports.
-            grpc::ClientContext context2;
-            coord438::Request request2;
-            coord438::FSReply reply2;
-            request2.set_id(stoi(id));
-            request2.set_port_number(clientPort);
-            request2.set_server_type(serverType);
-            grpc::Status status2 = stubCoord_->getFSServerInfo(&context2, request2, &reply2);
+            // grpc::ClientContext context2;
+            // coord438::Request request2;
+            // coord438::FSReply reply2;
+            // request2.set_id(stoi(id));
+            // request2.set_port_number(clientPort);
+            // request2.set_server_type(serverType);
+            // grpc::Status status2 = stubCoord_->getFSServerInfo(&context2, request2, &reply2);
 
-            std::cout << "other id 1 " << reply2.id_1() << std::endl;
-            std::cout << "other port 1 " << reply2.port_number_1() << std::endl;
-            std::cout << "other id 2 " << reply2.id_2() << std::endl;
-            std::cout << "other port 2 " << reply2.port_number_2() << std::endl;
+            // std::cout << "other id 1 " << reply2.id_1() << std::endl;
+            // std::cout << "other port 1 " << reply2.port_number_1() << std::endl;
+            // std::cout << "other id 2 " << reply2.id_2() << std::endl;
+            // std::cout << "other port 2 " << reply2.port_number_2() << std::endl;
+            // syncer.server_id_1 = reply2.id_1();
+            // syncer.port_num_1 = reply2.port_number_1();
+            // syncer.server_id_2 = reply2.id_2();
+            // syncer.port_num_1 = reply2.port_number_2();
 
-            //create syncer stubs to do stub thing
-
-
-          old_time = result2.st_mtime;
-      }
-
-    }
-    
-  }
 }
 
-void checkForFollowerUpdates(std::string server_type, std::string server_id){
+
+void populateOldTimeDB(std::string server_id){
+
+  //old_file_times.clear();
+
+  DIR *dir2 = nullptr;
+  struct dirent *ent2 = nullptr;
+  std::string dirname = "master_" + server_id;
+
+    dir2 = opendir (("master_" + server_id).c_str());
+
+    if (dir2 != nullptr) {
+      // looping through cluster directory for every file
+      while (ent2 = readdir (dir2)) {
+
+        
+          if( !strcmp(ent2->d_name, ".") || !strcmp(ent2->d_name, "..")){
+             //djfh
+          }else{
+
+            struct stat initial;
+            if(stat((dirname + "/" + ent2->d_name).c_str(), &initial)==0){
+              oldFileTimes oldFile;
+
+              oldFile.filename = ent2->d_name;
+              oldFile.old_time = initial.st_mtime;
+
+              old_file_times.push_back(oldFile);
+            }
+          }
+
+        
+      }
+      closedir (dir2);
+
+
+    } else {
+      /* could not open directory */
+      perror ("could not open directory");
+    }
+
+}
+
+void checkForUpdates(std::string server_type, std::string server_id){
 
   //monitor every follower file in the cluster
   //if there is a change in this cluster
   //then update the other FS clusters of who is  following the person in the other cluster
+    DIR *dir = nullptr;
+    struct dirent *ent = nullptr;
+    std::string dirname = "master_" + server_id;
+
+  populateOldTimeDB(server_id);
+  for(oldFileTimes o : old_file_times){
+    std::cout << o.filename << ":" << o.old_time <<std::endl;
+  }
+
+
+  while(1){
+    std::this_thread::sleep_for(std::chrono::seconds(5));
+
+    
+    std::cout <<"I am running : " << std::endl;
+
+
+
+    DIR *dir;
+    struct dirent *ent;
+
+    dir = opendir (("master_" + server_id).c_str());
+
+    if (dir != nullptr) {
+      // looping through cluster directory for every file
+      while (ent = readdir (dir)) {
+        //std::cout << "I AME HEREREEEEE 4" << std::endl;
+
+        if(!strcmp(ent->d_name, ".") || !strcmp(ent->d_name, "..")){
+          //ksjdhf
+        }else{
+
+          int index = findOldTimeIndex(ent->d_name);
+          
+
+
+          //std::cout << "index: " << index << std::endl;
+          std::cout << "filname: " << ent->d_name << std::endl;
+
+          
+
+            struct stat result;
+            if(stat((dirname + "/" + ent->d_name).c_str(), &result)==0){
+
+              if(index == -1){
+                //populateOldTimeDB(server_id);
+                //push the new entries into the db
+                oldFileTimes old;
+                old.filename = ent->d_name;
+                old.old_time = result.st_mtime;
+                old_file_times.push_back(old);
+              } 
+
+              oldFileTimes* o = &old_file_times[index];
+
+              if(o->old_time  != result.st_mtime){
+                  std::cout<< ent->d_name << " was modified :::::: " << "old time: " << o->old_time << ", new file time: " << result.st_mtime << std::endl;
+                  if(strcmp(ent->d_name, "all_clients.txt")==0){
+                    std::cout << "I am iin the all clients if" << std::endl;
+                    //here  I should update the old files db again    
+                  }
+                  //call the stub function so it can  contact the other FS to update of its follower info
+
+                  o->old_time = result.st_mtime;
+              }            
+            }else{
+              std::cout << "error in stat vall for: " << ent->d_name <<std::endl;
+            }
+
+          
+          
+
+        }
+      }
+      closedir (dir);
+    } else {
+      perror ("could not open directory");
+    }
+  }
+
+}
+
+void populateRoutingTable(){
+
+  grpc::ClientContext context;
+  coord438::Request request;
+  coord438::Reply reply;
+    
+  //takes id from command line and sends it to coordinator
+  request.set_id(stoi(id));
+  request.set_port_number(clientPort);
+  request.set_server_type(serverType);
+
+  grpc::Status status = stubCoord_->populateRoutingTable(&context, request, &reply);
 
 }
 
@@ -210,51 +349,15 @@ void RunServer(std::string port_no) {
   std::unique_ptr<Server> server(builder.BuildAndStart());
   std::cout << "Server listening on " << server_address << std::endl;
 
-  //here I should push into the master db or call the get server functon
   std::string login_info = "localhost:" + coordinatorPort;
-
   stubCoord_ = std::unique_ptr<CoordinatorService::Stub>(CoordinatorService::NewStub(
                grpc::CreateChannel(
                     login_info, grpc::InsecureChannelCredentials())));
 
-  grpc::ClientContext context;
-  coord438::Request request;
-  coord438::Reply reply;
-    
-  //takes id from command line and sends it to coordinator
-  request.set_id(stoi(id));
-  request.set_port_number(clientPort);
-  request.set_server_type(serverType);
+  
 
-  grpc::Status status = stubCoord_->populateRoutingTable(&context, request, &reply);
-
-
-  //get other fs info only if fs table is populated completely 
-  // grpc::ClientContext context2;
-  // coord438::Request request2;
-  // coord438::FSReply reply2;
-  // request2.set_id(stoi(id));
-  // request2.set_port_number(clientPort);
-  // request2.set_server_type(serverType);
-  // grpc::Status status2 = stubCoord_->getFSServerInfo(&context2, request2, &reply2);
-
-  // std::cout << "other id 1 " << reply2.id_1() << std::endl;
-  // std::cout << "other port 1 " << reply2.port_number_1() << std::endl;
-  // std::cout << "other id 2 " << reply2.id_2() << std::endl;
-  // std::cout << "other port 2 " << reply2.port_number_2() << std::endl;
-
-
-
-  // if(status.ok()){
-  //   std::cout << "somehting is right" << std::endl;
-
-  // }else {
-  //   std::cout << "somehting is wrong" << std::endl;
-  // }
-
-  checkForAllClientUpdates("master", id);
-
-
+  populateRoutingTable();
+  checkForUpdates("master", id);
   server->Wait();
 }
 

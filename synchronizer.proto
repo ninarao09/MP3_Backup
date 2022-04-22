@@ -36,8 +36,9 @@ import "google/protobuf/timestamp.proto";
 // The messenger service definition.
 service SynchronizerService{
 
-    rpc checkAllClientsFiles (Request) returns (Reply) {}
-    rpc checkAllFollowerFiles (Request) returns (Reply) {}
+    rpc sendFollowerInfo (FollowerRequest) returns (Reply) {}
+    rpc coordinatorCommunicate (stream HeartBeat) returns (stream HeartBeat) {}
+
 }
 
 enum ServerType{
@@ -66,6 +67,14 @@ message Reply{
     string port_number = 2;
 }
 
+message FollowerRequest{
+    string client = 1;
+    string client_in_file = 2;
+    repeated int32 user_id = 3;
+    repeated int32 server_id = 4;
+
+}
+
 message HeartBeat{
     // id of the server
     int32 sid = 1;
@@ -73,4 +82,5 @@ message HeartBeat{
     ServerType s_type = 2;
     //Time the message was sent
     google.protobuf.Timestamp timestamp = 3;
+    string msg = 4;
 }

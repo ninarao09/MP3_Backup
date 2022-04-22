@@ -206,11 +206,17 @@ class SNSServiceImpl final : public SNSService::Service {
       list_reply->add_all_users(segment);
     }
 
-    // std::vector<Client*>::const_iterator it;
-    // for(it = user.client_followers.begin(); it!=user.client_followers.end(); it++){
-    //   list_reply->add_followers((*it)->username);
-    // }
-
+    std::string server_id = std::to_string((stoi(id)%3)+1);
+    std::fstream newfile;
+    std::string dirname = "master_" + server_id + "/" + id + "_followers.txt"; 
+    newfile.open(dirname,std::ios::in|std::ios::out); //open a file to perform read operation using file object
+    if (newfile.is_open()){   //checking whether the file is open
+      std::string tp;
+      while(getline(newfile, tp)){ //read data from file object and put it into string.
+        list_reply->add_followers(tp);
+      }
+    }
+    newfile.close();
 
 
     return Status::OK;
@@ -281,6 +287,14 @@ class SNSServiceImpl final : public SNSService::Service {
       client_db.push_back(c);
       reply->set_msg("Login Successful!");
       addClientToFile("master", id, username, "all_clients.txt");
+
+      std::string dirname2 = serverType + "_" + id;
+      std::string fileinput = "/" + username + "_timeline.txt";
+      std::string fileinput2 = "/" + username + "_following.txt";
+      std::string fileinput3 = "/" +  username + "_followers.txt";
+      std::ofstream outputfile(dirname2+fileinput, std::ios::app|std::ios::out|std::ios::in);
+      std::ofstream outputfile2(dirname2+fileinput2, std::ios::app|std::ios::out|std::ios::in);
+      std::ofstream outputfile3(dirname2+fileinput3, std::ios::app|std::ios::out|std::ios::in);
     }
     else{ 
       Client *user = &client_db[user_index];
@@ -292,6 +306,9 @@ class SNSServiceImpl final : public SNSService::Service {
         user->connected = true;
       }
     }
+
+    
+
     return Status::OK;
   }
 

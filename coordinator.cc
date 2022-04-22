@@ -301,31 +301,6 @@ class CoordinatorServiceImpl final : public CoordinatorService::Service {
 
 
         std::cout << "From SYNCRONIZER: " << request->all_clients_request() << std::endl;
-
-        // std::string  tester = request->all_clients_request();
-
-        // std::stringstream clients(tester);
-        // std::string segment;
-
-        // //put all values from synchronizer in temp db
-        // while(std::getline(clients, segment, '.'))
-        // {
-        //   all_clients_in_cluster_db.push_back(segment);
-        // }
-
-        //check if values in temp db are in all_clients_db
-        // int checker = 0;
-        // for(int i=0; i<all_clients_in_cluster_db.size(); ++i){
-        //     for(int j=0; j<allClients_db.size(); ++j){
-        //       if(all_clients_in_cluster_db[i] == allClients_db[j]){
-        //         checker = 1;
-        //       }
-        //   }
-        //   if(checker == 0){
-        //     allClients_db.push_back(all_clients_in_cluster_db[i]);
-        //   }
-        // }
-
         
         std::string all_clients;
         

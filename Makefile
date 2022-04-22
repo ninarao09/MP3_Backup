@@ -1,7 +1,7 @@
 HOST_SYSTEM = $(shell uname | cut -f 1 -d_)
 SYSTEM ?= $(HOST_SYSTEM)
 CXX = g++
-CPPFLAGS += -I$(MY_INSTALL_DIR)/include -pthread
+CPPFLAGS += -I$(MY_INSTALL_DIR)/include -pthread 
 CXXFLAGS += -std=c++11
 ifeq ($(SYSTEM),Darwin)
 LDFLAGS += -L$(MY_INSTALL_DIR)/lib `pkg-config --libs protobuf grpc++ grpc`\
@@ -27,7 +27,7 @@ tsd: sns.pb.o sns.grpc.pb.o coordinator.pb.o coordinator.grpc.pb.o synchronizer.
 coordinator: coordinator.pb.o coordinator.grpc.pb.o coordinator.o
 	$(CXX) $^ $(LDFLAGS) -g -o $@
 
-synchronizer: synchronizer.pb.o synchronizer.grpc.pb.o coordinator.pb.o coordinator.grpc.pb.o synchronizer.o
+synchronizer: synchronizer.pb.o synchronizer.grpc.pb.o coordinator.pb.o coordinator.grpc.pb.o synchronizer.o 
 	$(CXX) $^ $(LDFLAGS) -g -o $@
 	
 .PRECIOUS: %.grpc.pb.cc
