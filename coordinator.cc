@@ -8,6 +8,7 @@
 #include <time.h>
 #include <sstream>
 #include <fstream>
+#include <chrono>
 
 #include "database.h"
 #include <grpc++/grpc++.h>
@@ -32,6 +33,8 @@ using grpc::Status;
 using grpc::ServerReaderWriter;
 using grpc::ServerReader;
 using grpc::ServerWriter;
+using grpc::ClientContext;
+
 
 
 using csce438::Message;
@@ -42,6 +45,15 @@ using coord438::HeartBeat;
 using coord438::SlaveRequest;
 using coord438::SlaveReply;
 using coord438::FSReply;
+
+using sync438::SynchronizerService;
+
+
+
+std::unique_ptr<SynchronizerService::Stub> stubFS1_;
+std::unique_ptr<SynchronizerService::Stub> stubFS2_;
+std::unique_ptr<SynchronizerService::Stub> stubFS3_;
+
 
 
 
@@ -71,7 +83,7 @@ std::time_t temp_time;
 std::time_t current_time;
 std::time_t old_time;
 
-
+void checkFSTableSize(std::string portNum3);
 
 void print_db(std::vector<Servers> db){
   for(Servers s : db){
@@ -221,6 +233,11 @@ class CoordinatorServiceImpl final : public CoordinatorService::Service {
               serverInstance.serverType = "syncer";
               serverInstance.timestamp = current_time;
               followerSyncer_db.push_back(serverInstance);
+              std::cout << "follower Syncer size " << followerSyncer_db.size() << std::endl;
+              if(followerSyncer_db.size()==3){
+                checkFSTableSize(request->port_number());
+              }
+              
             }
         }
           
@@ -361,6 +378,54 @@ class CoordinatorServiceImpl final : public CoordinatorService::Service {
       
 };
 
+void checkFSTableSize(std::string portNum3){
+
+
+      std::string port1 = followerSyncer_db[0].portNum;
+      std::string port2 = followerSyncer_db[1].portNum;
+      std::string port3 = portNum3;
+
+
+
+
+                //create and call stubs for all 3 FS to tell them
+                std::string login_info1 = "localhost:" + port1;
+
+                stubFS1_ = std::unique_ptr<SynchronizerService::Stub>(SynchronizerService::NewStub(
+                        grpc::CreateChannel(
+                              login_info1, grpc::InsecureChannelCredentials())));
+
+                std::string login_info2 = "localhost:" + port2;
+
+                stubFS2_ = std::unique_ptr<SynchronizerService::Stub>(SynchronizerService::NewStub(
+                        grpc::CreateChannel(
+                              login_info2, grpc::InsecureChannelCredentials())));
+
+                std::string login_info3 = "localhost:" + port3;
+
+                stubFS3_ = std::unique_ptr<SynchronizerService::Stub>(SynchronizerService::NewStub(
+                        grpc::CreateChannel(
+                              login_info3, grpc::InsecureChannelCredentials())));
+
+                sync438::Request request;
+                sync438::Reply reply;
+                ClientContext context;
+                request.set_server_size(3);
+                Status status1 = stubFS1_->coordinatorCommunicate(&context, request, &reply);
+
+                sync438::Request request2;
+                sync438::Reply reply2;
+                ClientContext context2;
+                request2.set_server_size(3);
+                Status status2 = stubFS2_->coordinatorCommunicate(&context2, request2, &reply2);
+
+                sync438::Request request3;
+                sync438::Reply reply3;
+                ClientContext context3;
+                request.set_server_size(3);
+                Status status3 = stubFS3_->coordinatorCommunicate(&context3, request3, &reply3);
+
+}
 
 
 void RunServer(std::string port_no) {
@@ -375,8 +440,8 @@ void RunServer(std::string port_no) {
 
   // when the fs table is size 3
   //tell the syncer to that so it can run the
-
-
+  
+  //checkFSTableSize();
 
   server->Wait();
 }

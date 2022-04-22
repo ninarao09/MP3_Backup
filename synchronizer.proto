@@ -38,7 +38,7 @@ service SynchronizerService{
 
     rpc sendFollowerInfo (FollowerRequest) returns (Reply) {}
     rpc sendAllClientsInfo (FollowerRequest) returns (Reply) {}
-    rpc coordinatorCommunicate (stream HeartBeat) returns (stream HeartBeat) {}
+    rpc coordinatorCommunicate (Request) returns (Reply) {}
 
 }
 
@@ -61,6 +61,7 @@ message Request{
     int32 id = 2;
     // the type of server
     ServerType server_type = 3;
+    int32 server_size = 4;
 }
 
 message Reply{
@@ -78,7 +79,7 @@ message FollowerRequest{
 
 message HeartBeat{
     // id of the server
-    int32 sid = 1;
+    int32 server_size = 1;
     // type of the server
     ServerType s_type = 2;
     //Time the message was sent

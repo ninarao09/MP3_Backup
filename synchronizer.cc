@@ -165,7 +165,58 @@ class SynchronizerServiceImpl final : public SynchronizerService::Service {
     return Status::OK;
   }
 
-   Status coordinatorCommunicate(ServerContext* context, ServerReaderWriter<HeartBeat, HeartBeat>* stream) override {
+   Status coordinatorCommunicate(ServerContext* context, const Request* request, Reply* reply) override {
+
+      
+
+        grpc::ClientContext context2;
+            coord438::Request request2;
+            coord438::FSReply reply2;
+            request2.set_id(stoi(id));
+            request2.set_port_number(clientPort);
+            request2.set_server_type(serverType);
+            grpc::Status status2 = stubCoord_->getFSServerInfo(&context2, request2, &reply2);
+
+            std::cout << "other id 1 " << reply2.id_1() << std::endl;
+            std::cout << "other port 1 " << reply2.port_number_1() << std::endl;
+            std::cout << "other id 2 " << reply2.id_2() << std::endl;
+            std::cout << "other port 2 " << reply2.port_number_2() << std::endl;
+            syncer.server_id_1 = reply2.id_1();
+            syncer.port_num_1 = reply2.port_number_1();
+            syncer.server_id_2 = reply2.id_2();
+            syncer.port_num_1 = reply2.port_number_2();
+
+            Servers fs1;
+            Servers fs2;
+            Servers fs3;
+
+            fs1.serverId = stoi(id);
+            fs1.portNum = clientPort;
+            fs2.serverId = reply2.id_1();
+            fs2.portNum = reply2.port_number_1(); 
+            fs2.stubName = "stubFS1_";
+            fs3.serverId = reply2.id_2();
+            fs3.portNum = reply2.port_number_2();
+            fs3.stubName = "stubFS2_";
+
+            followerSyncer_db.push_back(fs1);
+            followerSyncer_db.push_back(fs2);
+            followerSyncer_db.push_back(fs3);
+
+            std::string login_info = "localhost:" + reply2.port_number_1();
+
+            stubFS1_ = std::unique_ptr<SynchronizerService::Stub>(SynchronizerService::NewStub(
+                        grpc::CreateChannel(
+                              login_info, grpc::InsecureChannelCredentials())));
+
+            std::string login_info2 = "localhost:" + reply2.port_number_2();
+
+            stubFS2_ = std::unique_ptr<SynchronizerService::Stub>(SynchronizerService::NewStub(
+                        grpc::CreateChannel(
+                              login_info2, grpc::InsecureChannelCredentials())));
+
+      
+
       return Status::OK;
    }
 
@@ -214,51 +265,7 @@ void ifTheFileWasAllClients(std::string server_id){
 
 
           //contact coordinator to recieve other fs ports.
-            grpc::ClientContext context2;
-            coord438::Request request2;
-            coord438::FSReply reply2;
-            request2.set_id(stoi(id));
-            request2.set_port_number(clientPort);
-            request2.set_server_type(serverType);
-            grpc::Status status2 = stubCoord_->getFSServerInfo(&context2, request2, &reply2);
-
-            std::cout << "other id 1 " << reply2.id_1() << std::endl;
-            std::cout << "other port 1 " << reply2.port_number_1() << std::endl;
-            std::cout << "other id 2 " << reply2.id_2() << std::endl;
-            std::cout << "other port 2 " << reply2.port_number_2() << std::endl;
-            syncer.server_id_1 = reply2.id_1();
-            syncer.port_num_1 = reply2.port_number_1();
-            syncer.server_id_2 = reply2.id_2();
-            syncer.port_num_1 = reply2.port_number_2();
-
-            Servers fs1;
-            Servers fs2;
-            Servers fs3;
-
-            fs1.serverId = stoi(id);
-            fs1.portNum = clientPort;
-            fs2.serverId = reply2.id_1();
-            fs2.portNum = reply2.port_number_1(); 
-            fs2.stubName = "stubFS1_";
-            fs3.serverId = reply2.id_2();
-            fs3.portNum = reply2.port_number_2();
-            fs3.stubName = "stubFS2_";
-
-            followerSyncer_db.push_back(fs1);
-            followerSyncer_db.push_back(fs2);
-            followerSyncer_db.push_back(fs3);
-
-            std::string login_info = "localhost:" + reply2.port_number_1();
-
-            stubFS1_ = std::unique_ptr<SynchronizerService::Stub>(SynchronizerService::NewStub(
-                        grpc::CreateChannel(
-                              login_info, grpc::InsecureChannelCredentials())));
-
-            std::string login_info2 = "localhost:" + reply2.port_number_2();
-
-            stubFS2_ = std::unique_ptr<SynchronizerService::Stub>(SynchronizerService::NewStub(
-                        grpc::CreateChannel(
-                              login_info2, grpc::InsecureChannelCredentials())));
+            ///was herere
 
 
 }

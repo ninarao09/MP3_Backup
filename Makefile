@@ -24,7 +24,7 @@ tsc: sns.pb.o sns.grpc.pb.o coordinator.pb.o coordinator.grpc.pb.o synchronizer.
 tsd: sns.pb.o sns.grpc.pb.o coordinator.pb.o coordinator.grpc.pb.o synchronizer.pb.o synchronizer.grpc.pb.o tsd.o
 	$(CXX) $^ $(LDFLAGS) -g -o $@
 	
-coordinator: coordinator.pb.o coordinator.grpc.pb.o coordinator.o
+coordinator: coordinator.pb.o coordinator.grpc.pb.o synchronizer.pb.o synchronizer.grpc.pb.o coordinator.o
 	$(CXX) $^ $(LDFLAGS) -g -o $@
 
 synchronizer: synchronizer.pb.o synchronizer.grpc.pb.o coordinator.pb.o coordinator.grpc.pb.o synchronizer.o 
