@@ -108,6 +108,7 @@ struct oldFileTimes{
   long int old_time;
 };
 
+std::vector<Servers> followerSyncer_db;
 std::vector<oldFileTimes> old_file_times;
 
 
@@ -117,7 +118,7 @@ class SynchronizerServiceImpl final : public SynchronizerService::Service {
   Status sendFollowerInfo(ServerContext* context, const FollowerRequest* request, Reply* reply) override {
 
       //update follower file in the respective cluster
-
+        std::cout << "in the API call" <<std::endl;
 
 
 
@@ -166,30 +167,60 @@ void ifTheFileWasAllClients(std::string server_id){
           newfile.close();
 
           //get all clients in that exist - send the new user to the database
-          std::cout  << "All clients in cluster string: " << all_clients_in_cluster << std::endl;
+          //std::cout  << "All clients in cluster string: " << all_clients_in_cluster << std::endl;
           request.set_all_clients_request(all_clients_in_cluster);
-          std::cout <<"req: " << request.all_clients_request() << std::endl;
+          //std::cout <<"req: " << request.all_clients_request() << std::endl;
           grpc::Status status1 = stubCoord_->getAllClients(&context, request, &reply);
-          std::cout << "All clients reply: " << reply.all_clients_reply() << std::endl;
+          //std::cout << "All clients reply: " << reply.all_clients_reply() << std::endl;
 
 
           //contact coordinator to recieve other fs ports.
-            // grpc::ClientContext context2;
-            // coord438::Request request2;
-            // coord438::FSReply reply2;
-            // request2.set_id(stoi(id));
-            // request2.set_port_number(clientPort);
-            // request2.set_server_type(serverType);
-            // grpc::Status status2 = stubCoord_->getFSServerInfo(&context2, request2, &reply2);
+            grpc::ClientContext context2;
+            coord438::Request request2;
+            coord438::FSReply reply2;
+            request2.set_id(stoi(id));
+            request2.set_port_number(clientPort);
+            request2.set_server_type(serverType);
+            grpc::Status status2 = stubCoord_->getFSServerInfo(&context2, request2, &reply2);
 
-            // std::cout << "other id 1 " << reply2.id_1() << std::endl;
-            // std::cout << "other port 1 " << reply2.port_number_1() << std::endl;
-            // std::cout << "other id 2 " << reply2.id_2() << std::endl;
-            // std::cout << "other port 2 " << reply2.port_number_2() << std::endl;
-            // syncer.server_id_1 = reply2.id_1();
-            // syncer.port_num_1 = reply2.port_number_1();
-            // syncer.server_id_2 = reply2.id_2();
-            // syncer.port_num_1 = reply2.port_number_2();
+            std::cout << "other id 1 " << reply2.id_1() << std::endl;
+            std::cout << "other port 1 " << reply2.port_number_1() << std::endl;
+            std::cout << "other id 2 " << reply2.id_2() << std::endl;
+            std::cout << "other port 2 " << reply2.port_number_2() << std::endl;
+            syncer.server_id_1 = reply2.id_1();
+            syncer.port_num_1 = reply2.port_number_1();
+            syncer.server_id_2 = reply2.id_2();
+            syncer.port_num_1 = reply2.port_number_2();
+
+            Servers fs1;
+            Servers fs2;
+            Servers fs3;
+
+            fs1.serverId = stoi(id);
+            fs1.portNum = clientPort;
+            fs2.serverId = reply2.id_1();
+            fs2.portNum = reply2.port_number_1(); 
+            fs2.stubName = "stubFS1_";
+            fs3.serverId = reply2.id_2();
+            fs3.portNum = reply2.port_number_2();
+            fs3.stubName = "stubFS2_";
+
+            followerSyncer_db.push_back(fs1);
+            followerSyncer_db.push_back(fs2);
+            followerSyncer_db.push_back(fs3);
+
+            std::string login_info = "localhost:" + reply2.port_number_1();
+
+            stubFS1_ = std::unique_ptr<SynchronizerService::Stub>(SynchronizerService::NewStub(
+                        grpc::CreateChannel(
+                              login_info, grpc::InsecureChannelCredentials())));
+
+            std::string login_info2 = "localhost:" + reply2.port_number_2();
+
+            stubFS2_ = std::unique_ptr<SynchronizerService::Stub>(SynchronizerService::NewStub(
+                        grpc::CreateChannel(
+                              login_info2, grpc::InsecureChannelCredentials())));
+
 
 }
 
@@ -246,17 +277,13 @@ void checkForUpdates(std::string server_type, std::string server_id){
     std::string dirname = "master_" + server_id;
 
   populateOldTimeDB(server_id);
-  for(oldFileTimes o : old_file_times){
-    std::cout << o.filename << ":" << o.old_time <<std::endl;
-  }
+  // for(oldFileTimes o : old_file_times){
+  //   std::cout << o.filename << ":" << o.old_time <<std::endl;
+  // }
 
 
   while(1){
     std::this_thread::sleep_for(std::chrono::seconds(5));
-
-    
-    std::cout <<"I am running : " << std::endl;
-
 
 
     DIR *dir;
@@ -293,16 +320,78 @@ void checkForUpdates(std::string server_type, std::string server_id){
                 old.old_time = result.st_mtime;
                 old_file_times.push_back(old);
               } 
-
+              index = findOldTimeIndex(ent->d_name);
               oldFileTimes* o = &old_file_times[index];
-
+              std::string fname = ent->d_name;
               if(o->old_time  != result.st_mtime){
                   std::cout<< ent->d_name << " was modified :::::: " << "old time: " << o->old_time << ", new file time: " << result.st_mtime << std::endl;
+                  std::string token = fname.substr(0, fname.find("_"));
+                  std::string token2 = fname.substr(fname.find("_"), fname.length()-1);
+
+                  std::cout << "token " << token << ", token2 " << token2 << std::endl;
+
+
                   if(strcmp(ent->d_name, "all_clients.txt")==0){
                     std::cout << "I am iin the all clients if" << std::endl;
-                    //here  I should update the old files db again    
+                    ifTheFileWasAllClients(server_id);
                   }
+
                   //call the stub function so it can  contact the other FS to update of its follower info
+                  if(strcmp(token2.c_str(), "_following.txt")==0){
+                    //get foller info from file
+                    std::string clientFileToEdit;
+                    std::fstream newfile;
+                    newfile.open(dirname + "/" + ent->d_name,std::ios::in|std::ios::out); //open a file to perform read operation using file object
+                    if (newfile.is_open()){   //checking whether the file is open
+                      std::string tp;
+                      while(getline(newfile, tp)){ //read data from file object and put it into string.
+                        clientFileToEdit = tp;
+                      }
+                    }
+                    newfile.close();
+
+                    //use mod 3 formula to figure out which port to use for the stub
+                    int cluster_to_get = stoi(clientFileToEdit) % 3 + 1;
+                    std::string port_number;
+                    std::string stub_name;
+                    for(Servers s : followerSyncer_db){
+                      if(cluster_to_get==1 && s.serverId==1){
+                        port_number = s.portNum;
+                        std::cout << s.stubName << std::endl;
+                        stub_name = s.stubName;
+                        
+                      }else if(cluster_to_get==2){
+                        port_number = s.portNum;
+                        std::cout << s.stubName << std::endl;
+                        stub_name = s.stubName;
+
+                      }else if(cluster_to_get==3){
+                        port_number = s.portNum;
+                        std::cout << s.stubName << std::endl;
+                        stub_name = s.stubName;
+                      }
+                    }
+
+                    ClientContext context;
+                    FollowerRequest request;
+                    Reply reply;
+                    Status status;
+
+                    request.set_client(clientFileToEdit);
+                    request.set_client_in_file(token);
+
+                    if(stub_name == "stubFS1_"){
+                    
+                      status = stubFS1_->sendFollowerInfo(&context, request, &reply);
+
+                    }else if(stub_name == "stubFS2_"){
+                      status = stubFS2_->sendFollowerInfo(&context, request, &reply);
+                    }
+
+
+
+                  }
+                  
 
                   o->old_time = result.st_mtime;
               }            

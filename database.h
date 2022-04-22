@@ -15,6 +15,7 @@ struct Servers{
   bool isActive = true;
   time_t timestamp;
   std::string serverType;
+  std::string stubName;
 };
 
 
