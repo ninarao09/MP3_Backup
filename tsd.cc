@@ -197,12 +197,12 @@ class SNSServiceImpl final : public SNSService::Service {
   
   Status List(ServerContext* context, const Request* request, ListReply* list_reply) override {
     std::cout << "I am in the list function server side" << std::endl;
-    Client user = client_db[find_user(request->username())];
+    
     int index = 0;
 
     std::fstream newfile2;
     std::string dirname2 = "master_" + id + "/total_clients.txt"; 
-    newfile2.open(dirname2,std::ios::in|std::ios::out); //open a file to perform read operation using file object
+    newfile2.open(dirname2,std::ios::app|std::ios::in|std::ios::out); //open a file to perform read operation using file object
     if (newfile2.is_open()){   //checking whether the file is open
       std::string tp;
       while(getline(newfile2, tp)){ //read data from file object and put it into string.
@@ -211,11 +211,12 @@ class SNSServiceImpl final : public SNSService::Service {
     }
     newfile2.close();
 
+
     //std::string server_id = std::to_string((stoi(id)%3)+1);
     std::fstream newfile;
     std::string dirname = "master_" + id + "/" + request->username() + "_followers.txt"; 
     std::cout << "client int list: " <<request->username() << std::endl;
-    newfile.open(dirname,std::ios::in|std::ios::out); //open a file to perform read operation using file object
+    newfile.open(dirname,std::ios::app|std::ios::in|std::ios::out); //open a file to perform read operation using file object
     if (newfile.is_open()){   //checking whether the file is open
       std::string tp;
       while(getline(newfile, tp)){ //read data from file object and put it into string.

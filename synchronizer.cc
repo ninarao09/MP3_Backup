@@ -143,7 +143,21 @@ class SynchronizerServiceImpl final : public SynchronizerService::Service {
       //write to the follower file
       std::cout << "in the API call2" <<std::endl;
 
+      std::fstream newfile;
       std::string dirname = "master_" + std::to_string(request->server_id());
+      newfile.open(dirname + "/total_clients.txt",std::ios::in|std::ios::out); //open a file to perform read operation using file object
+      if (newfile.is_open()){   //checking whether the file is open
+        std::string tp;
+        while(getline(newfile, tp)){ //read data from file object and put it into string.
+            if(request->client_in_file()==tp){
+              newfile.close();
+              return Status::OK;
+            }
+        }
+       }
+       newfile.close();
+
+      
       std::string fileinput = "/total_clients.txt";
       std::ofstream outputfile(dirname+fileinput, std::ios::app|std::ios::out|std::ios::in);
       outputfile<<request->client_in_file()<<std::endl;
@@ -412,6 +426,7 @@ void checkForUpdates(std::string server_type, std::string server_id){
 
                   //call the stub function so it can  contact the other FS to update of its follower info
                   if(strcmp(token2.c_str(), "_following.txt")==0){
+                    std::cout << "in following if __________________" << std::endl;
                     //get foller info from file
                     std::string clientFileToEdit;
                     std::fstream newfile;
