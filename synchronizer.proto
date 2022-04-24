@@ -38,6 +38,7 @@ service SynchronizerService{
 
     rpc sendFollowerInfo (FollowerRequest) returns (Reply) {}
     rpc sendAllClientsInfo (FollowerRequest) returns (Reply) {}
+    rpc sendTimelineInfo (TimelineRequest) returns (Reply) {}
     rpc coordinatorCommunicate (Request) returns (Reply) {}
 
 }
@@ -75,6 +76,12 @@ message FollowerRequest{
     repeated int32 user_id = 3;
     int32 server_id = 4;
 
+}
+
+message TimelineRequest{
+    string client_id = 1;
+    string msgToSend = 2;
+    string server_id = 3;
 }
 
 message HeartBeat{

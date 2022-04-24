@@ -432,7 +432,7 @@ class SNSServiceImpl final : public SNSService::Service {
         }
         std::string line;
         std::vector<std::string> newest_twenty;
-        std::ifstream in(username+"_actualtimeline.txt");
+        std::ifstream in(dirname+username+"_actualtimeline.txt");
         int count = 0;
         //Read the last up-to-20 lines (newest 20 messages) from userfollowing.txt
         while(getline(in, line)){
@@ -453,33 +453,41 @@ class SNSServiceImpl final : public SNSService::Service {
         continue;
       }
       // //Send the message to each follower's stream
-      // std::vector<Client*>::const_iterator it;
-      // for(it = c->client_followers.begin(); it!=c->client_followers.end(); it++){
-      //   Client *temp_client = *it;
-      // 	if(temp_client->stream!=0 && temp_client->connected)
-	    //   temp_client->stream->Write(message);
-      //   //For each of the current user's followers, put the message in their following.txt file
-      //   std::string temp_username = temp_client->username;
-      //   std::string temp_file = temp_username + "_actualtimeline.txt";
-	    //   std::ofstream following_file(temp_file,std::ios::app|std::ios::out|std::ios::in);
-	    //   following_file << fileinput;
-      //   temp_client->following_file_size++;
-	    //   std::ofstream user_file(temp_username + ".txt",std::ios::app|std::ios::out|std::ios::in);
-      //   user_file << fileinput;
-      // }
+      std::vector<Client*>::const_iterator it;
+      for(it = c->client_followers.begin(); it!=c->client_followers.end(); it++){
+        Client *temp_client = *it;
+      	if(temp_client->stream!=0 && temp_client->connected)
+	      temp_client->stream->Write(message);
+        //For each of the current user's followers, put the message in their following.txt file
+        std::string temp_username = temp_client->username;
+        std::string temp_file = temp_username + "_actualtimeline.txt";
+	      std::ofstream following_file(temp_file,std::ios::app|std::ios::out|std::ios::in);
+	      following_file << fileinput;
+        temp_client->following_file_size++;
+	      std::ofstream user_file(temp_username + ".txt",std::ios::app|std::ios::out|std::ios::in);
+        user_file << fileinput;
+      }
 
-      // std::fstream newfile;
-      // std::string dirname = s_type + "_" + id + "/" + username + "_followers.txt"; 
-      // newfile2.open(dirname,std::ios::app|std::ios::in|std::ios::out); //open a file to perform read operation using file object
-      // if (newfile2.is_open()){   //checking whether the file is open
-      //   std::string tp;
-      //   while(getline(newfile2, tp)){ //read data from file object and put it into string.
-      //     if(temp_client->stream!=0 && temp_client->connected){
-	    //       temp_client->stream->Write(message);
-      //     }
-      //   }
-      // }
-      // newfile2.close();
+      std::fstream newfile;
+      newfile.open(dirname,std::ios::app|std::ios::in|std::ios::out); //open a file to perform read operation using file object
+      if (newfile.is_open()){   //checking whether the file is open
+        std::string tp;
+        while(getline(newfile, tp)){ //read data from file object and put it into string.
+          int client_index = find_user(tp);
+          Client* temp_client = &client_db[client_index];
+          if(temp_client->stream!=0 && temp_client->connected){
+	          temp_client->stream->Write(message);
+          }
+          std::string temp_username = temp_client->username;
+          std::string temp_file = temp_username + "_actualtimeline.txt";
+          std::ofstream following_file(dirname+temp_file,std::ios::app|std::ios::out|std::ios::in);
+          following_file << fileinput;
+          temp_client->following_file_size++;
+          std::ofstream user_file(dirname+temp_username+"_t.txt",std::ios::app|std::ios::out|std::ios::in);
+          user_file << fileinput;
+        }
+      }
+      newfile.close();
     }
     //If the client disconnected from Chat Mode, set connected to false
     c->connected = false;

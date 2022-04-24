@@ -72,6 +72,7 @@ using sync438::Request;
 using sync438::Reply;
 using sync438::HeartBeat;
 using sync438::FollowerRequest;
+using sync438::TimelineRequest;
 using sync438::SynchronizerService;
 using coord438::CoordinatorService;
 
@@ -244,10 +245,25 @@ class SynchronizerServiceImpl final : public SynchronizerService::Service {
 
       return Status::OK;
    }
+   Status sendTimelineInfo(ServerContext* context, const TimelineRequest* request, Reply* reply) override {
+    
+    std::string dirname = "master_" + request->server_id();
+    std::string filename = "/"+request->client_id()+"_actualtimeline.txt";
+    std::ofstream user_file(dirname+filename,std::ios::app|std::ios::out|std::ios::in);
+    user_file << request->msgtosend();
+    return Status::OK;
+   }
 
 };
 
-
+int findFS_id(std::string stubName){
+  for(Servers s : followerSyncer_db){
+      if(s.stubName == stubName){
+        return s.serverId;
+      }
+  }
+  return -1;
+}
 
 int findOldTimeIndex(std::string filename){
   int index=0;
@@ -259,6 +275,8 @@ int findOldTimeIndex(std::string filename){
   }
   return -1;
 }
+
+
 
 void ifTheFileWasAllClients(std::string server_id){
 
@@ -515,6 +533,70 @@ void checkForUpdates(std::string server_type, std::string server_id){
                   
                   if(strcmp(token2.c_str(), "_t.txt")==0){
                     std::cout << "in Timeline file if" << std::endl;
+                    //if the timeline file was modified parse through the current users followers and add that msg to the followers
+                    //actual timeline file.
+
+                    std::string msgToSend;
+                    std::fstream newfile;
+                    newfile.open(dirname + "/" + ent->d_name,std::ios::in|std::ios::out); //open a file to perform read operation using file object
+                    if (newfile.is_open()){   //checking whether the file is open
+                      std::string tp;
+                      while(getline(newfile, tp)){ //read data from file object and put it into string.
+                        msgToSend = tp;
+                      }
+                    }
+                    newfile.close();
+
+                    std::cout << "user: " << token <<std::endl;
+
+                    std::cout << "server_id: " << std::to_string((stoi(token)%3)+1) <<std::endl;
+
+                    
+                    //chekc if the followrs are in that cluster if it is, write to the file here else call the appropriate stub to write to the file.
+                    std::fstream newfile2;
+                    newfile2.open(dirname + "/" + token + "_followers.txt", std::ios::in|std::ios::out); //open a file to perform read operation using file object
+                    if (newfile2.is_open()){   //checking whether the file is open
+                      std::string tp;
+                      while(getline(newfile2, tp)){ //read data from file object and put it into string.
+                        if((stoi(tp)%3)+1 == stoi(id)){
+                          std::cout << "I AME hire 3: " <<std::endl;
+
+                          std::string filename = "/"+tp+"_actualtimeline.txt";
+                          std::ofstream user_file(dirname+filename,std::ios::app|std::ios::out|std::ios::in);
+                          user_file << msgToSend;
+                        }else{
+                          //call stubs to write to the other acutaltimeline files in their clisters
+                          std::cout << "I AME hire 4: " <<std::endl;
+
+                          int serv1 = findFS_id("stubFS1_");
+                          int serv2 = findFS_id("stubFS2_");
+                          if((stoi(tp)%3)+1==serv1){
+                            ClientContext context;
+                            TimelineRequest request;
+                            Reply reply;
+
+                            request.set_client_id(tp);
+                            request.set_msgtosend(msgToSend);
+                            request.set_server_id(std::to_string(serv1));
+                            Status status = stubFS1_->sendTimelineInfo(&context, request, &reply);
+
+                          }else if((stoi(tp)%3)+1==serv2){
+                            ClientContext context2;
+                            TimelineRequest request2;
+                            Reply reply2;
+                            request2.set_client_id(tp);
+                            request2.set_msgtosend(msgToSend);
+                            request2.set_server_id(std::to_string(serv2));
+
+                            Status status = stubFS2_->sendTimelineInfo(&context2, request2, &reply2);
+
+                          }
+                    
+                        }
+                      }
+                    }
+                    newfile2.close();
+
                   }
 
                   o->old_time = result.st_mtime;
