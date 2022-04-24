@@ -353,26 +353,24 @@ void Client::Timeline(const std::string& username) {
 
     //Thread used to read chat messages and send them to the server
     std::thread writer([username, stream]() {
-            std::string input = "Set Stream";
-            Message m = MakeMessage(username, input);
-            stream->Write(m);
-            while (1) {
+        std::string input = "Set Stream";
+        Message m = MakeMessage(username, input);
+        stream->Write(m);
+        while (1) {
             input = getPostMessage();
             m = MakeMessage(username, input);
             stream->Write(m);
-            }
-            stream->WritesDone();
-            });
+        }
+        stream->WritesDone();
+    });
 
     std::thread reader([username, stream]() {
             Message m;
             while(stream->Read(&m)){
-
-            google::protobuf::Timestamp temptime = m.timestamp();
-            std::time_t time = temptime.seconds();
-            displayPostMessage(m.username(), m.msg(), time);
+                time_t time;
+                displayPostMessage(m.username(), m.msg(), time);
             }
-            });
+    });
 
     //Wait for the threads to finish
     writer.join();

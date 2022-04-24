@@ -513,6 +513,9 @@ void checkForUpdates(std::string server_type, std::string server_id){
 
                   }
                   
+                  if(strcmp(token2.c_str(), "_t.txt")==0){
+                    std::cout << "in Timeline file if" << std::endl;
+                  }
 
                   o->old_time = result.st_mtime;
               }            
