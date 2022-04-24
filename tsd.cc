@@ -87,6 +87,10 @@ std::string id = "1";
 std::string clientPort = "8080";
 std::unique_ptr<CoordinatorService::Stub> stubCoord_;
 std::unique_ptr<SNSService::Stub> stubSlave_;
+std::unique_ptr<SNSService::Stub> stubS1_;
+std::unique_ptr<SNSService::Stub> stubS2_;
+
+
 
 
 bool isMaster = false;
@@ -110,6 +114,10 @@ struct Client2{
 
 //Vector that stores every client that has been created
 std::vector<Client> client_db;
+std::vector<Servers> master_db;
+std::vector<Servers> slave_db;
+
+
 
 //Helper function used to find a Client object given its username
 int find_user(std::string username){
@@ -138,6 +146,14 @@ int find_userFromCluster(std::string username){
     }
     newfile2.close();
   return -1;
+}
+
+std::string findStubName(std::string server_id, std::vector<Servers> db){
+    for(Servers s : db){
+      if(s.serverId==stoi(server_id)){
+        return s.stubName;
+      }
+    }
 }
 
 void addClientToFile(std::string server_type, std::string server_id, std::string client_id, std::string filename){
@@ -372,6 +388,8 @@ class SNSServiceImpl final : public SNSService::Service {
     return Status::OK;
   }
 
+
+
   Status Timeline(ServerContext* context, 
 		ServerReaderWriter<Message, Message>* stream) override {
 
@@ -476,8 +494,41 @@ class SNSServiceImpl final : public SNSService::Service {
         while(getline(newfile, tp)){ //read data from file object and put it into string.
           int client_index = find_user(tp);
           Client* temp_client = &client_db[client_index];
-          if(temp_client->stream!=0 && temp_client->connected){
-	          temp_client->stream->Write(message);
+          //if(temp_client->stream!=0 && temp_client->connected){
+            //temp_client->stream->Write(message);
+            int server_id = stoi(id)%3+1;
+            if(stoi(tp)%3+1==server_id){
+              if(temp_client->stream!=0 && temp_client->connected){
+                temp_client->stream->Write(message);
+              }
+                
+            }else{
+
+                std::vector<Servers> db;
+                if(serverType == "master"){
+                  db = master_db;
+                }else{
+                  db = slave_db;
+                }
+                  
+                std::string stub_name = findStubName(id, db);
+        
+                if(stub_name == "stubS1_"){
+                    
+                  ClientContext context1;
+                  std::shared_ptr<ClientReaderWriter<Message, Message>> stream(
+                    stubS1_->Timeline(&context1));
+
+                }else if(stub_name == "stubS2_"){
+                  ClientContext context2;
+                  std::shared_ptr<ClientReaderWriter<Message, Message>> stream(
+                    stubS2_->Timeline(&context2));
+                }
+
+              
+
+            //}
+
           }
           if(temp_client->username != ""){
             std::string temp_username = temp_client->username;
@@ -504,6 +555,63 @@ class SNSServiceImpl final : public SNSService::Service {
 
     return Status::OK;
   }
+
+  Status getOtherServerPorts(ServerContext* context, const Request* request, Reply* reply) override {
+
+      
+
+        grpc::ClientContext context2;
+            coord438::Request request2;
+            coord438::FSReply reply2;
+            request2.set_id(stoi(id));
+            request2.set_port_number(clientPort);
+            request2.set_server_type(serverType);
+            grpc::Status status2 = stubCoord_->getServerInfo(&context2, request2, &reply2);
+
+            std::cout << "other id 1 " << reply2.id_1() << std::endl;
+            std::cout << "other port 1 " << reply2.port_number_1() << std::endl;
+            std::cout << "other id 2 " << reply2.id_2() << std::endl;
+            std::cout << "other port 2 " << reply2.port_number_2() << std::endl;
+
+            Servers s1;
+            Servers s2;
+            Servers s3;
+
+            s1.serverId = stoi(id);
+            s1.portNum = clientPort;
+            s2.serverId = reply2.id_1();
+            s2.portNum = reply2.port_number_1(); 
+            s2.stubName = "stubS1_";
+            s3.serverId = reply2.id_2();
+            s3.portNum = reply2.port_number_2();
+            s3.stubName = "stubS2_";
+
+            if(serverType == "master"){
+              master_db.push_back(s1);
+              master_db.push_back(s2);
+              master_db.push_back(s3);
+            }else if(serverType == "slave"){
+              slave_db.push_back(s1);
+              slave_db.push_back(s2);
+              slave_db.push_back(s3);
+            }
+            
+            std::string login_info = "localhost:" + reply2.port_number_1();
+
+            stubS1_ = std::unique_ptr<SNSService::Stub>(SNSService::NewStub(
+                        grpc::CreateChannel(
+                              login_info, grpc::InsecureChannelCredentials())));
+
+            std::string login_info2 = "localhost:" + reply2.port_number_2();
+
+            stubS2_ = std::unique_ptr<SNSService::Stub>(SNSService::NewStub(
+                        grpc::CreateChannel(
+                              login_info2, grpc::InsecureChannelCredentials())));
+
+      
+
+      return Status::OK;
+   }
 
 };
 

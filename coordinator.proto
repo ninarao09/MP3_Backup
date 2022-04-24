@@ -41,6 +41,7 @@ service CoordinatorService{
     rpc getAllClients (Request) returns (Reply) {}
     rpc getSlaveInfo (Request) returns (Reply) {}
     rpc getFSServerInfo (Request) returns (FSReply) {}
+    rpc getServerInfo (Request) returns (FSReply) {}
     // Bidirectional Communication to check on server interaction
     rpc ServerCommunicate (stream HeartBeat) returns (stream HeartBeat) {}
  

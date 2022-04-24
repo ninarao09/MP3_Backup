@@ -550,7 +550,7 @@ void checkForUpdates(std::string server_type, std::string server_id){
                     std::cout << "user: " << token <<std::endl;
 
                     std::cout << "server_id: " << std::to_string((stoi(token)%3)+1) <<std::endl;
-
+//why
                     
                     //chekc if the followrs are in that cluster if it is, write to the file here else call the appropriate stub to write to the file.
                     std::fstream newfile2;

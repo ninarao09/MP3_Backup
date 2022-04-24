@@ -69,7 +69,7 @@ the IP/port for the Master server in each cluster. More implementation
 details are below.
 
 The Coordinator also keeps track of the Follower Synchronizer Fi IP/port
-number in each cluster. More implementation details are below.
+number in each cluster. More implementation details are below.//stop
 */
 
 //Vector for the routing tables
@@ -143,6 +143,25 @@ std::string findFSPortNum(std::string server_id){
 
 }
 
+std::string findPortNum(std::string server_id, std::string server_type){
+  
+
+  if(server_type =="master"){
+    for(Servers s : master_db){
+      if(s.serverId == stoi(server_id)){
+        return s.portNum;
+      }
+    }
+  }else if(server_type == "slave"){
+    for(Servers s : slave_db){
+      if(s.serverId == stoi(server_id)){
+        return s.portNum;
+      }
+    }
+  }
+
+}
+
 std::string findSlavePortNum(std::string server_id){
   
     for(Servers s : slave_db){
@@ -152,6 +171,8 @@ std::string findSlavePortNum(std::string server_id){
     }
 
 }
+
+
 
 
 int findServerIndex(std::string server_id, std::string server_type){
@@ -336,6 +357,48 @@ class CoordinatorServiceImpl final : public CoordinatorService::Service {
 
           reply->set_id_2(2);
           port_num = findFSPortNum("2");
+          reply->set_port_number_2(port_num);
+
+        }
+
+        return Status::OK;
+      }
+
+      Status getServerInfo(ServerContext* context, const Request* request, FSReply* reply) override {
+        //here I need to find the cluster id write to the proper file for the follow request
+
+        std::cout << "inget server info  - id: " << request->id() << std::endl;
+        std::cout << "inget server info - port: " << request->port_number() << std::endl;
+
+        std::string port_num ;
+
+        if(request->id()==1){
+
+          reply->set_id_1(2);
+          port_num = findPortNum("2", request->server_type());
+          reply->set_port_number_1(port_num);
+
+          reply->set_id_2(3);
+          port_num = findPortNum("3", request->server_type());
+          reply->set_port_number_2(port_num);
+
+        }else if(request->id()==2){
+
+          reply->set_id_1(1);
+          port_num = findPortNum("1", request->server_type());
+          reply->set_port_number_1(port_num);
+
+          reply->set_id_2(3);
+          port_num = findPortNum("3", request->server_type());
+          reply->set_port_number_2(port_num);
+
+        }else if(request->id()==3){
+          reply->set_id_1(1);
+          port_num = findPortNum("1", request->server_type());
+          reply->set_port_number_1(port_num);
+
+          reply->set_id_2(2);
+          port_num = findPortNum("2", request->server_type());
           reply->set_port_number_2(port_num);
 
         }

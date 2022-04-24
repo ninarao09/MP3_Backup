@@ -42,6 +42,7 @@ service SNSService{
   rpc getServerPort (Request) returns (Reply) {}
   // Bidirectional streaming RPC
   rpc Timeline (stream Message) returns (stream Message) {} 
+  rpc getOtherServerPorts (Request) returns (Reply) {}
 }
 
 message ListReply {
