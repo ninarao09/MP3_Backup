@@ -250,7 +250,7 @@ class SynchronizerServiceImpl final : public SynchronizerService::Service {
     std::string dirname = "master_" + request->server_id();
     std::string filename = "/"+request->client_id()+"_actualtimeline.txt";
     std::ofstream user_file(dirname+filename,std::ios::app|std::ios::out|std::ios::in);
-    user_file << request->msgtosend();
+    user_file << request->msgtosend() << std::endl;
     return Status::OK;
    }
 
@@ -558,40 +558,49 @@ void checkForUpdates(std::string server_type, std::string server_id){
                     if (newfile2.is_open()){   //checking whether the file is open
                       std::string tp;
                       while(getline(newfile2, tp)){ //read data from file object and put it into string.
-                        if((stoi(tp)%3)+1 == stoi(id)){
-                          std::cout << "I AME hire 3: " <<std::endl;
+                        if(tp!=""){
+                          if((stoi(tp)%3)+1 == stoi(id)){
+                            
+                              std::cout << "I AME hire 3: " <<std::endl;
 
-                          std::string filename = "/"+tp+"_actualtimeline.txt";
-                          std::ofstream user_file(dirname+filename,std::ios::app|std::ios::out|std::ios::in);
-                          user_file << msgToSend;
-                        }else{
-                          //call stubs to write to the other acutaltimeline files in their clisters
-                          std::cout << "I AME hire 4: " <<std::endl;
+                              std::string filename = "/"+tp+"_actualtimeline.txt";
+                              std::ofstream user_file(dirname+filename,std::ios::app|std::ios::out|std::ios::in);
+                              user_file << msgToSend;
 
-                          int serv1 = findFS_id("stubFS1_");
-                          int serv2 = findFS_id("stubFS2_");
-                          if((stoi(tp)%3)+1==serv1){
-                            ClientContext context;
-                            TimelineRequest request;
-                            Reply reply;
+                                                
+                          }else{
+                            //call stubs to write to the other acutaltimeline files in their clisters
+                            std::cout << "I AME hire 4: " <<std::endl;
 
-                            request.set_client_id(tp);
-                            request.set_msgtosend(msgToSend);
-                            request.set_server_id(std::to_string(serv1));
-                            Status status = stubFS1_->sendTimelineInfo(&context, request, &reply);
+                            int serv1 = findFS_id("stubFS1_");
+                            int serv2 = findFS_id("stubFS2_");
+                            if((stoi(tp)%3)+1==serv1){
+                              
+                                ClientContext context;
+                                TimelineRequest request;
+                                Reply reply;
 
-                          }else if((stoi(tp)%3)+1==serv2){
-                            ClientContext context2;
-                            TimelineRequest request2;
-                            Reply reply2;
-                            request2.set_client_id(tp);
-                            request2.set_msgtosend(msgToSend);
-                            request2.set_server_id(std::to_string(serv2));
+                                request.set_client_id(tp);
+                                request.set_msgtosend(msgToSend);
+                                request.set_server_id(std::to_string(serv1));
+                                Status status = stubFS1_->sendTimelineInfo(&context, request, &reply);
 
-                            Status status = stubFS2_->sendTimelineInfo(&context2, request2, &reply2);
+                              
+                              
 
+                            }else if((stoi(tp)%3)+1==serv2){
+                              ClientContext context2;
+                              TimelineRequest request2;
+                              Reply reply2;
+                              request2.set_client_id(tp);
+                              request2.set_msgtosend(msgToSend);
+                              request2.set_server_id(std::to_string(serv2));
+
+                              Status status = stubFS2_->sendTimelineInfo(&context2, request2, &reply2);
+
+                            }
+                      
                           }
-                    
                         }
                       }
                     }
