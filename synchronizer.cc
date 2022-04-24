@@ -56,6 +56,8 @@
 
 #include "synchronizer.grpc.pb.h"
 #include "coordinator.grpc.pb.h"
+#include "sns.grpc.pb.h"
+
 
 
 using google::protobuf::Timestamp;
@@ -82,6 +84,7 @@ using grpc::ClientReader;
 using grpc::ClientReaderWriter;
 using grpc::ClientWriter;
 
+using csce438::SNSService;
 
 
 std::string serverType = "syncer";
@@ -92,6 +95,7 @@ std::string clientPort = "8080";
 std::unique_ptr<CoordinatorService::Stub> stubCoord_;
 std::unique_ptr<SynchronizerService::Stub> stubFS1_;
 std::unique_ptr<SynchronizerService::Stub> stubFS2_;
+
 
 long int old_time;
 
@@ -110,6 +114,8 @@ struct oldFileTimes{
 };
 
 std::vector<Servers> followerSyncer_db;
+std::vector<Servers> master_db;
+std::vector<Servers> slave_db;
 std::vector<oldFileTimes> old_file_times;
 
 
@@ -245,6 +251,8 @@ class SynchronizerServiceImpl final : public SynchronizerService::Service {
 
       return Status::OK;
    }
+
+  
    Status sendTimelineInfo(ServerContext* context, const TimelineRequest* request, Reply* reply) override {
     
     std::string dirname = "master_" + request->server_id();
@@ -258,6 +266,21 @@ class SynchronizerServiceImpl final : public SynchronizerService::Service {
 
 int findFS_id(std::string stubName){
   for(Servers s : followerSyncer_db){
+      if(s.stubName == stubName){
+        return s.serverId;
+      }
+  }
+  return -1;
+}
+
+int findServer_id(std::string stubName, std::string server_type){
+  std::vector<Servers> db;
+  if(server_type == "master"){
+    db = master_db;
+  }else{
+    db = slave_db;
+  }
+  for(Servers s : db){
       if(s.stubName == stubName){
         return s.serverId;
       }
