@@ -47,6 +47,8 @@ using coord438::SlaveReply;
 using coord438::FSReply;
 
 using sync438::SynchronizerService;
+using csce438::SNSService;
+
 
 
 
@@ -55,6 +57,9 @@ std::unique_ptr<SynchronizerService::Stub> stubFS2_;
 std::unique_ptr<SynchronizerService::Stub> stubFS3_;
 
 
+std::unique_ptr<SNSService::Stub> stubS1_;
+std::unique_ptr<SNSService::Stub> stubS2_;
+std::unique_ptr<SNSService::Stub> stubS3_;
 
 
 /*
@@ -84,6 +89,8 @@ std::time_t current_time;
 std::time_t old_time;
 
 void checkFSTableSize(std::string portNum3);
+void checkTableSize(std::string portNum3, std::string server_type);
+
 
 void print_db(std::vector<Servers> db){
   for(Servers s : db){
@@ -249,6 +256,9 @@ class CoordinatorServiceImpl final : public CoordinatorService::Service {
             serverInstance.serverType = "master";
             serverInstance.timestamp = current_time;
             master_db.push_back(serverInstance);
+            if(master_db.size()==3){
+                checkTableSize(request->port_number(), "master");
+            }
           }
         }else if (request->server_type() == "slave") {
           if(slave_db.size() < 3){
@@ -258,6 +268,9 @@ class CoordinatorServiceImpl final : public CoordinatorService::Service {
             serverInstance.serverType = "slave";
             serverInstance.timestamp = current_time;
             slave_db.push_back(serverInstance);
+            if(slave_db.size()==3){
+                checkTableSize(request->port_number(), "slave");
+              }
           }
         }else if (request->server_type() == "syncer") {
             if(followerSyncer_db.size() < 3){
@@ -502,6 +515,65 @@ void checkFSTableSize(std::string portNum3){
                 ClientContext context3;
                 request.set_server_size(3);
                 Status status3 = stubFS3_->coordinatorCommunicate(&context3, request3, &reply3);
+
+}
+
+void checkTableSize(std::string portNum3, std::string server_type){
+
+
+    
+      std::string port1;
+      std::string port2;
+      std::string port3;
+
+      if(server_type == "master"){
+        port1 = master_db[0].portNum;
+        port2 = master_db[1].portNum;
+        port3 = portNum3;
+
+      }else{
+        port1 = slave_db[0].portNum;
+        port2 = slave_db[1].portNum;
+        port3 = portNum3;
+
+      }
+
+
+
+
+                //create and call stubs for all 3 FS to tell them
+                std::string login_info1 = "localhost:" + port1;
+
+                stubS1_ = std::unique_ptr<SNSService::Stub>(SNSService::NewStub(
+                        grpc::CreateChannel(
+                              login_info1, grpc::InsecureChannelCredentials())));
+
+                std::string login_info2 = "localhost:" + port2;
+
+                stubS2_ = std::unique_ptr<SNSService::Stub>(SNSService::NewStub(
+                        grpc::CreateChannel(
+                              login_info2, grpc::InsecureChannelCredentials())));
+
+                std::string login_info3 = "localhost:" + port3;
+
+                stubS3_ = std::unique_ptr<SNSService::Stub>(SNSService::NewStub(
+                        grpc::CreateChannel(
+                              login_info3, grpc::InsecureChannelCredentials())));
+
+                csce438::Request request;
+                csce438::Reply reply;
+                ClientContext context;
+                Status status1 = stubS1_->getOtherServerPorts(&context, request, &reply);
+
+                csce438::Request request2;
+                csce438::Reply reply2;
+                ClientContext context2;
+                Status status2 = stubS2_->getOtherServerPorts(&context2, request2, &reply2);
+
+                csce438::Request request3;
+                csce438::Reply reply3;
+                ClientContext context3;
+                Status status3 = stubS3_->getOtherServerPorts(&context3, request3, &reply3);
 
 }
 

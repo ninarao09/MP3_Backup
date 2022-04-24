@@ -525,6 +525,16 @@ void checkForUpdates(std::string server_type, std::string server_id){
 
                     }else if(stub_name == "stubFS2_"){
                       status = stubFS2_->sendFollowerInfo(&context, request, &reply);
+                    }else{
+                      std::string dirname = "master_" + id;
+                      std::string fileinput = "/" + clientFileToEdit+ "_followers.txt";
+                      std::ofstream outputfile(dirname+fileinput, std::ios::app|std::ios::out|std::ios::in);
+                      outputfile<<token<<std::endl;
+
+                      std::string dirname2 = "slave_" + id;
+                      std::string fileinput2 = "/" + clientFileToEdit + "_followers.txt";
+                      std::ofstream outputfile2(dirname2+fileinput2, std::ios::app|std::ios::out|std::ios::in);
+                      outputfile2<<token<<std::endl;
                     }
 
 
